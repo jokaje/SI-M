@@ -1,0 +1,2465 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Muse 64×64 Pixel Avatar Creator & Zufalls-Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #0b0d17;
+      color: #f1f5f9;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #111526; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-20 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 via-indigo-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 font-bold text-slate-950 text-lg">
+        M
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+          Muse Avatar Creator
+          <span class="text-xs font-mono uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">64×64 Q12 Engine</span>
+        </h1>
+        <p class="text-xs text-slate-400">Zufalls-Kreaturen würfeln, live testen & als fertige <code class="text-cyan-300">muse_pixel.c</code> exportieren</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2.5">
+      <button id="btnRandom" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-bold text-sm shadow-lg shadow-orange-500/20 flex items-center gap-2 transition active:scale-95">
+        <span>🎲</span> Zufalls-Wesen würfeln
+      </button>
+      <button id="btnDownloadC" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 flex items-center gap-2 transition active:scale-95">
+        <span>⬇️</span> C-Code (.c) herunterladen
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left Column: Live 64x64 Preview & Emotion Switcher -->
+    <section class="lg:col-span-5 flex flex-col gap-5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 flex flex-col items-center shadow-xl">
+        <div class="w-full flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="creatureNameBadge" class="text-sm font-bold text-white">Kosmisches Wesen #4092</span>
+          </div>
+          <label class="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
+            <input type="checkbox" id="chkGrid" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0" />
+            Pixel-Raster (wie Hardware)
+          </label>
+        </div>
+
+        <!-- 64x64 Upscaled Canvas -->
+        <div class="relative p-3 rounded-2xl bg-black border border-slate-800 shadow-inner">
+          <canvas id="previewCanvas" width="320" height="320" class="w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] rounded-lg"></canvas>
+        </div>
+
+        <!-- Pet / Audio Sliders -->
+        <div class="w-full grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-800/80">
+          <button id="btnPet" class="py-2 px-3 rounded-xl bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/30 text-pink-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+            <span>👋</span> Streicheln (Happy-Reaktion)
+          </button>
+          <div class="flex flex-col justify-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-800">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Audio-Pegel (Level)</span>
+              <span id="lblAutoTalk" class="text-emerald-400">Auto</span>
+            </div>
+            <input id="rngLevel" type="range" min="0" max="1" step="0.02" value="0" class="w-full accent-cyan-400 h-1.5 mt-1" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 12 Emotions Selector -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Alle 12 Emotionen live testen</h2>
+        <div id="modeButtons" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+      </div>
+    </section>
+
+    <!-- Right Column: Creature DNA Controls & Generated C Code -->
+    <section class="lg:col-span-7 flex flex-col gap-5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-cyan-400">Kreatur-Baukasten (DNA-Parameter)</h2>
+          <span id="seedDisplay" class="text-xs font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">Seed: 0x0000</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <!-- Head Appendages -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">1. Kopf-Merkmal (Ohren / Hörner / Kiemen)</label>
+            <select id="selEars" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Keine (Klassischer runder Kopf)</option>
+              <option value="1">Fuchsohren (Groß & spitz mit Innenohr)</option>
+              <option value="2">Drachenhörner (Geschwungen & gerippt)</option>
+              <option value="3">Axolotl-Kiemen (6 leuchtende Wedel)</option>
+              <option value="4">Eulen-Federbüschel (Geschwungene Ohrbüschel)</option>
+              <option value="5">Flammen-Haarschopf (Wehende Feuerlocken)</option>
+              <option value="6">Schlappohren (Lange Hängeohren)</option>
+              <option value="7">Alien-Fühler (Leuchtende Antennen)</option>
+            </select>
+          </div>
+
+          <!-- Crown / Forehead -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">2. Stirn- & Kronen-Schmuck</label>
+            <select id="selCrown" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Keiner</option>
+              <option value="1">Schwebender Stern-Kristall</option>
+              <option value="2">Schwebende Gold-Mondsichel</option>
+              <option value="3">Kristall-Krone (Spitzer Eiskristall)</option>
+              <option value="4">Heiligenschein / Energie-Ring</option>
+            </select>
+          </div>
+
+          <!-- Wings -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">3. Rücken-Flügel</label>
+            <select id="selWings" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Keine Flügel</option>
+              <option value="1">Drachen-/Fledermausflügel (Flatternd)</option>
+              <option value="2">Feen-/Engelsflügel (Leuchtend)</option>
+            </select>
+          </div>
+
+          <!-- Tail -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">4. Schwanz-Typ</label>
+            <select id="selTail" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Kein Schwanz</option>
+              <option value="1">Buschiger Fuchsschwanz (Mit heller Spitze)</option>
+              <option value="2">Drachenschweif (Mit Flammen-Spitze)</option>
+              <option value="3">Axolotl-Schwimmflosse (Transparent)</option>
+            </select>
+          </div>
+
+          <!-- Belly Pattern -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">5. Gesicht- & Bauch-Muster</label>
+            <select id="selBelly" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Leuchtender Bauch-Kern (Soft Glow)</option>
+              <option value="1">Klassisches Muse-Gesichtspanel (Hoodie)</option>
+              <option value="2">Fuchs-Wangenmaske & Brustlatz</option>
+              <option value="3">Gerippter Drachen-Bauchpanzer</option>
+              <option value="4">Eulen-Herzgesicht & Feder-Brust</option>
+              <option value="5">Runder Perlen-Bauch + Leucht-Sommersprossen</option>
+            </select>
+          </div>
+
+          <!-- Eyes -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">6. Augen-Stil</label>
+            <select id="selEyes" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Große Sternen-Augen (Sklera + Leucht-Iris)</option>
+              <option value="1">Drachen-Augen (Vertikale Schlitzpupille)</option>
+              <option value="2">Runde Eulen-Augen (Große Iris + Ring)</option>
+              <option value="3">Axolotl-Knopfaugen (Dunkel mit Lichtring)</option>
+              <option value="4">Klassische kleine Muse-Knopfaugen</option>
+            </select>
+          </div>
+
+          <!-- Mouth / Nose -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">7. Schnauze / Mund-Art</label>
+            <select id="selMouth" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Fröhliches Lächeln (Klassisch)</option>
+              <option value="1">Fuchs-/Katzenschnauze (:3 mit Stupsnase)</option>
+              <option value="2">Drachen-Schnauze (Nüstern + kleiner Fangzahn)</option>
+              <option value="3">Goldener Eulen-Schnabel</option>
+            </select>
+          </div>
+
+          <!-- Ambient Particles -->
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">8. Spezial-Partikel</label>
+            <select id="selParticle" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-none">
+              <option value="0">Nur Kosmos-Funken (Standard)</option>
+              <option value="1">Aufsteigende Leucht-Bläschen (Idle/Speak)</option>
+              <option value="2">Musiknoten beim Sprechen + Feuer bei Wut</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Body Proportions & Colors -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-800 text-xs">
+          <div>
+            <label class="block text-slate-400 mb-1">Körper-Farbe</label>
+            <input type="color" id="colBody" value="#f59e0b" class="w-full h-9 rounded-lg bg-slate-950 border border-slate-700 cursor-pointer p-1" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Bauch/Masken-Farbe</label>
+            <input type="color" id="colSkin" value="#fff3d1" class="w-full h-9 rounded-lg bg-slate-950 border border-slate-700 cursor-pointer p-1" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Magie/Akzent-Farbe</label>
+            <input type="color" id="colCyan" value="#5ceeff" class="w-full h-9 rounded-lg bg-slate-950 border border-slate-700 cursor-pointer p-1" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Augen-Iris-Farbe</label>
+            <input type="color" id="colIris" value="#2490ff" class="w-full h-9 rounded-lg bg-slate-950 border border-slate-700 cursor-pointer p-1" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Generated C-Code Box -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col shadow-xl">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Generierter C-Code (<code class="text-cyan-300">muse_pixel_custom.c</code>)</span>
+          <button id="btnCopyC" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-300 transition">
+            📋 Code kopieren
+          </button>
+        </div>
+        <textarea id="codeOutput" readonly class="w-full flex-1 min-h-[210px] bg-slate-950 text-slate-300 font-mono text-[11px] leading-relaxed p-3 rounded-xl border border-slate-800 focus:outline-none resize-none"></textarea>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    /* =========================================================================
+     * 1. EMOTION MODES & SCHEMES (Identical to muse_pixel.c)
+     * ========================================================================= */
+    const MODES = [
+      { id: 0,  name: "BOOT",      label: "🚀 Boot",      f: [0xffffff, 0xcfe0ff, 0x6fd8ff, 0x2b7de0], acc: 0x7ce8ff },
+      { id: 1,  name: "IDLE",      label: "✨ Idle",      f: [0xfffbe0, 0xffe46b, 0x5ce1ff, 0x2a6bd9], acc: 0x6ae8ff },
+      { id: 2,  name: "LISTENING", label: "👂 Listening", f: [0xe8faff, 0x8fdcff, 0x3fa2ff, 0x2a5bd7], acc: 0x5cb8ff, talky: true },
+      { id: 3,  name: "THINKING",  label: "🤔 Thinking",  f: [0xffe6ff, 0xff9cf0, 0xd35bff, 0x7a2bd9], acc: 0xe07bff },
+      { id: 4,  name: "SPEAKING",  label: "🗣️ Speaking",  f: [0xeafff4, 0x9ff5cf, 0x3fd9a0, 0x1f9a7a], acc: 0x6ff0bf, talky: true },
+      { id: 5,  name: "ERROR",     label: "⚠️ Error",     f: [0xffd6d6, 0xff6b6b, 0xc7304a, 0x6b1a3a], acc: 0xff5c5c },
+      { id: 6,  name: "OFF",       label: "👋 Off",       f: [0xd8d4ff, 0x8f86d9, 0x5a4fb0, 0x2e2870], acc: 0x7c72d0 },
+      { id: 7,  name: "SLEEPY",    label: "😴 Sleepy",    f: [0xe0e8ff, 0x8ca0e8, 0x4858b0, 0x1e2660], acc: 0x7088e0 },
+      { id: 8,  name: "LOVE",      label: "😍 Love",      f: [0xffe8f4, 0xff94c8, 0xf04898, 0x981858], acc: 0xff68b4 },
+      { id: 9,  name: "ANGRY",     label: "💢 Angry",     f: [0xfff0d0, 0xff8830, 0xd82818, 0x700808], acc: 0xff4820 },
+      { id: 10, name: "SURPRISED", label: "😲 Surprised", f: [0xffffff, 0xfff070, 0x40e8ff, 0x1880d0], acc: 0x90f4ff },
+    ];
+
+    const W = 64, H = 64, TAU = 6.2831853;
+    const BAYER4 = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5]
+    ];
+
+    // Palette indices
+    const C_BG=0, C_OUT=1, C_OUT2=2, C_BD=3, C_BM=4, C_BL=5, C_BH=6, C_RIM=7,
+          C_SKIND=8, C_SKIN=9, C_SKINL=10, C_IRIS=11, C_IRIS_R=12, C_SHINE=13,
+          C_BROW=14, C_BLUSH=15, C_BLUSHD=16, C_MOUTH=17, C_TONGUE=18,
+          C_CYAN=19, C_CYAND=20, C_G0=21, C_G1=22, C_G2=23, C_G3=24,
+          C_AURA1=25, C_AURA2=26, C_SPK=27, C_ACC=28, C_SHADOW=29, C_HEART=30, C_WHITE=31, C_COUNT=32;
+
+    const M_NONE=0, M_TAIL=1, M_WING=2, M_GILL=3, M_BODY=4, M_FACE=5, M_EAR=6, M_ARM=7, M_FOOT=8;
+
+    /* =========================================================================
+     * 2. CREATURE DNA STATE
+     * ========================================================================= */
+    let dna = {
+      seed: 4092,
+      name: "Sternen-Hüter #4092",
+      ears: 1,       // 0..7
+      crown: 1,      // 0..4
+      wings: 0,      // 0..2
+      tail: 1,       // 0..3
+      belly: 2,      // 0..5
+      eyes: 0,       // 0..4
+      mouth: 1,      // 0..3
+      particle: 0,   // 0..2
+      bodyHex: "#f26b38",
+      skinHex: "#fff0dc",
+      cyanHex: "#6cf8ec",
+      irisHex: "#1cd4a8",
+      blushHex: "#ff7898",
+      bodyRx: 14.5,
+      bodyRy: 18.5,
+      headWiden: 0.16,
+      neckPinch: 0.16,
+      bellyBulge: 0.12
+    };
+
+    // Colour helpers
+    function hexToRgb(hex) {
+      const v = parseInt(hex.replace("#", ""), 16);
+      return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
+    }
+    function rgbToHexInt(c) {
+      const r = Math.max(0, Math.min(255, Math.round(c.r)));
+      const g = Math.max(0, Math.min(255, Math.round(c.g)));
+      const b = Math.max(0, Math.min(255, Math.round(c.b)));
+      return (r << 16) | (g << 8) | b;
+    }
+    function mixRgb(a, b, t) {
+      return { r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t };
+    }
+    function scaleRgb(a, k) {
+      return { r: a.r * k, g: a.g * k, b: a.b * k };
+    }
+    function hexStr(n) {
+      return "0x" + (n >>> 0).toString(16).padStart(6, "0");
+    }
+
+    function computeFixedPalette() {
+      const base = hexToRgb(dna.bodyHex);
+      const skin = hexToRgb(dna.skinHex);
+      const cyan = hexToRgb(dna.cyanHex);
+      const iris = hexToRgb(dna.irisHex);
+      const blush = hexToRgb(dna.blushHex);
+      const white = { r: 255, g: 255, b: 255 };
+      const dark = { r: 24, g: 16, b: 38 };
+
+      const fixed = new Array(C_COUNT).fill(0);
+      fixed[C_BG]     = 0x000000;
+      fixed[C_OUT]    = rgbToHexInt(mixRgb(dark, base, 0.22));
+      fixed[C_OUT2]   = rgbToHexInt(mixRgb(base, cyan, 0.50));
+      fixed[C_BD]     = rgbToHexInt(scaleRgb(base, 0.72));
+      fixed[C_BM]     = rgbToHexInt(base);
+      fixed[C_BL]     = rgbToHexInt(mixRgb(base, white, 0.26));
+      fixed[C_BH]     = rgbToHexInt(mixRgb(base, white, 0.58));
+      fixed[C_SKIND]  = rgbToHexInt(scaleRgb(skin, 0.84));
+      fixed[C_SKIN]   = rgbToHexInt(skin);
+      fixed[C_SKINL]  = rgbToHexInt(mixRgb(skin, white, 0.65));
+      fixed[C_IRIS]   = 0x100c1c;
+      fixed[C_IRIS_R] = rgbToHexInt(iris);
+      fixed[C_SHINE]  = 0xffffff;
+      fixed[C_BROW]   = rgbToHexInt(mixRgb(skin, cyan, 0.45));
+      fixed[C_BLUSH]  = rgbToHexInt(blush);
+      fixed[C_BLUSHD] = rgbToHexInt(scaleRgb(blush, 0.76));
+      fixed[C_MOUTH]  = 0x381628;
+      fixed[C_TONGUE] = 0xff6888;
+      fixed[C_CYAN]   = rgbToHexInt(cyan);
+      fixed[C_CYAND]  = rgbToHexInt(scaleRgb(cyan, 0.72));
+      fixed[C_SHADOW] = 0x141024;
+      fixed[C_HEART]  = 0xff4f8b;
+      fixed[C_WHITE]  = 0xffffff;
+      return fixed;
+    }
+
+    /* =========================================================================
+     * 3. REAL-TIME 64x64 SOFTWARE RENDERER (Mirrors C code 1:1)
+     * ========================================================================= */
+    const fb = new Uint8Array(W * H);
+    const mask = new Uint8Array(W * H);
+    let currentMode = 1; // IDLE
+    let t = 0, mode_t = 0, happy_t = -10;
+    let s_scheme = [ {r:255,g:255,b:255}, {r:255,g:255,b:255}, {r:255,g:255,b:255}, {r:255,g:255,b:255}, {r:120,g:230,b:255} ];
+    let eyes = { next_blink: 1.5, blink_start: -10, next_gaze: 1.0, gx: 0, gy: 0, tgx: 0, tgy: 0 };
+
+    function px(x, y, c) {
+      x = x | 0; y = y | 0;
+      if (x >= 0 && x < W && y >= 0 && y < H) fb[y * W + x] = c;
+    }
+    function get_px(x, y) {
+      x = x | 0; y = y | 0;
+      return (x >= 0 && x < W && y >= 0 && y < H) ? fb[y * W + x] : C_BG;
+    }
+    function iround(v) { return Math.floor(v + 0.5); }
+    function clampf(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+    function fracf(v) { return v - Math.floor(v); }
+    function bayer(x, y) { return (BAYER4[y & 3][x & 3] + 0.5) / 16.0; }
+    function hash16(x, y) {
+      let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) >>> 0;
+      h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+      return (h ^ (h >>> 16)) & 0xffff;
+    }
+    function stamp(rows, x0, y0, fill, alt) {
+      for (let r = 0; r < rows.length; r++) {
+        const row = rows[r];
+        for (let c = 0; c < row.length; c++) {
+          if (row[c] === '#') px(x0 + c, y0 + r, fill);
+          else if (row[c] === 'o') px(x0 + c, y0 + r, alt);
+        }
+      }
+    }
+
+    function renderFrame(dt) {
+      t += dt;
+      mode_t += dt;
+
+      const mObj = MODES[currentMode];
+      const fixedHex = computeFixedPalette();
+      const pal = fixedHex.map(c => ({ r: (c >> 16) & 255, g: (c >> 8) & 255, b: c & 255 }));
+
+      const k = 1.0 - Math.exp(-dt * 7.0);
+      for (let i = 0; i < 4; i++) {
+        const tgt = { r: (mObj.f[i] >> 16) & 255, g: (mObj.f[i] >> 8) & 255, b: mObj.f[i] & 255 };
+        s_scheme[i] = mixRgb(s_scheme[i], tgt, k);
+      }
+      const accTgt = { r: (mObj.acc >> 16) & 255, g: (mObj.acc >> 8) & 255, b: mObj.acc & 255 };
+      s_scheme[4] = mixRgb(s_scheme[4], accTgt, k);
+
+      const acc = s_scheme[4];
+      pal[C_G0] = s_scheme[0];
+      pal[C_G1] = s_scheme[1];
+      pal[C_G2] = s_scheme[2];
+      pal[C_G3] = s_scheme[3];
+      pal[C_ACC] = acc;
+      pal[C_RIM] = mixRgb(pal[C_CYAN], acc, 0.5);
+      pal[C_AURA1] = scaleRgb(acc, 0.16);
+      pal[C_AURA2] = scaleRgb(acc, 0.34);
+      pal[C_SPK] = mixRgb(acc, pal[C_WHITE], 0.45);
+
+      // Happiness & audio level
+      const sincePet = t - happy_t;
+      const happyLeft = 1.6 - sincePet;
+      const happy = (sincePet >= 0 && happyLeft > 0) ? (happyLeft > 0.4 ? 1.0 : happyLeft / 0.4) : 0.0;
+
+      const sliderVal = parseFloat(document.getElementById("rngLevel").value);
+      let level = sliderVal;
+      if (sliderVal === 0 && mObj.talky) {
+        const syl = Math.abs(Math.sin(t * 6.3)) * (0.55 + 0.45 * Math.sin(t * 1.7 + 1.0));
+        const gap = Math.sin(t * 0.9) > -0.6 ? 1.0 : 0.15;
+        level = clampf(syl * gap, 0, 1);
+      }
+
+      // Eyes update
+      if (t >= eyes.next_blink) {
+        eyes.blink_start = t;
+        eyes.next_blink = t + (Math.random() < 0.2 ? 0.28 : 2.2 + Math.random() * 3.0);
+      }
+      if (t >= eyes.next_gaze) {
+        eyes.next_gaze = t + 1.2 + Math.random() * 2.4;
+        if (Math.random() < 0.35) { eyes.tgx = 0; eyes.tgy = 0; }
+        else { eyes.tgx = Math.random() * 2 - 1; eyes.tgy = (Math.random() * 2 - 1) * 0.6; }
+      }
+      let tgx = eyes.tgx, tgy = eyes.tgy;
+      if (currentMode === 2 || currentMode === 10) { tgx = 0; tgy = 0; }
+      else if (currentMode === 3) { tgx = 0.75 * Math.sin(mode_t * 1.3) + 0.25; tgy = -0.85; }
+      else if (currentMode === 4) { tgx *= 0.3; tgy = 0; }
+      else if (currentMode === 7) { tgx = 0; tgy = 0.4; }
+      else if (currentMode === 9) { tgx = 0; tgy = -0.2; }
+      const ek = 1.0 - Math.exp(-dt * 14.0);
+      eyes.gx += (tgx - eyes.gx) * ek;
+      eyes.gy += (tgy - eyes.gy) * ek;
+      const bt = (t - eyes.blink_start) / 0.16;
+      const blink = (bt < 0 || bt > 1) ? 0 : (1.0 - Math.abs(bt * 2 - 1));
+
+      fb.fill(C_BG);
+      mask.fill(M_NONE);
+
+      const fade = currentMode === 6 ? clampf(1.0 - mode_t / 1.3, 0, 1) : 1.0;
+
+      // Motion
+      let bob = Math.sin(t * 1.8) * 1.0, breathe_rate = 2.0, lean = 0, hop = 0;
+      let perk = 0.0, tail_speed = 2.8, wing_flap = Math.sin(t * 3.6) * 0.35;
+
+      switch (currentMode) {
+        case 2: bob = Math.sin(t * 3.0) * 0.6; perk = 0.85; tail_speed = 3.5; wing_flap = 0.55 + Math.sin(t * 5.0) * 0.2; break;
+        case 3: bob = Math.sin(t * 2.4) * 0.8; lean = Math.sin(t * 1.3) * 1.2; perk = -0.25; tail_speed = 1.6; break;
+        case 4: bob = Math.sin(t * 5.0) * 0.6 - level * 1.5; perk = 0.45 * Math.sin(t * 6.5); tail_speed = 4.8; wing_flap = Math.sin(t * 8.0) * (0.4 + level * 0.5); break;
+        case 5: bob = 1.0; lean = Math.sin(t * 18.0) * (mode_t < 0.6 ? 1.0 : 0.0); perk = -0.9; tail_speed = 0.8; wing_flap = -0.8; break;
+        case 7: breathe_rate = 0.9; bob = Math.sin(t * 0.9) * 1.2 + 1.5; lean = Math.sin(t * 0.6) * 1.0; perk = -0.8; tail_speed = 0.9; wing_flap = -0.75; break;
+        case 8: bob = Math.sin(t * 3.5) * 0.8; lean = Math.sin(t * 2.5) * 1.8; perk = 0.65; tail_speed = 6.5; wing_flap = Math.sin(t * 12.0) * 0.75; break;
+        case 9: bob = 1.2; lean = Math.sin(t * 28.0) * 0.8; perk = -0.65; tail_speed = 8.0; wing_flap = 0.9; break;
+        case 10: hop = mode_t < 0.35 ? Math.sin((mode_t / 0.35) * Math.PI) * 6.0 : 0.0; bob = 0.0; perk = 1.0; tail_speed = 5.5; wing_flap = 1.0; break;
+      }
+      if (happy > 0) {
+        hop = Math.abs(Math.sin(t * 9.0)) * 3.0 * happy;
+        perk = 0.8;
+        tail_speed = 7.5;
+        wing_flap = Math.sin(t * 14.0) * 0.85;
+      }
+
+      const boot = currentMode === 0 ? clampf(mode_t / 1.4, 0, 1) : 1.0;
+      const pop = currentMode === 0 ? clampf(mode_t / 0.6, 0, 1) : 1.0;
+      const squash = 1.0 - (1.0 - pop) * 0.35 + Math.sin(pop * Math.PI) * 0.06;
+      const breathe = Math.sin(t * breathe_rate + 1.0) * 0.03;
+
+      const j = {
+        a: dna.bodyRx * (1 + breathe) * (2.0 - squash) + level * 0.8,
+        b: dna.bodyRy * (1 - breathe) * squash,
+        cx: (dna.tail > 0 ? 30.8 : 32.0) + lean,
+        cy: 0, fx: 0, fy: 0, fa: 0, fb: 7.3 * squash,
+        t, perk, tail_speed, wing_flap
+      };
+      j.cy = 55.5 - j.b + bob * 0.5 - hop;
+      j.fa = j.a * 0.76;
+      j.fx = j.cx + lean * 0.3;
+      j.fy = j.cy - j.b * 0.22 + bob * 0.3;
+
+      // Aura
+      const aura_r = 29.0 + level * 4.0 + Math.sin(t * 1.5);
+      const aura_s = (0.75 * boot + level * 0.4) * fade;
+      for (let y = Math.floor(j.cy - 3 - aura_r); y <= Math.ceil(j.cy - 3 + aura_r); y++) {
+        for (let x = Math.floor(j.cx - aura_r); x <= Math.ceil(j.cx + aura_r); x++) {
+          const dx = x + 0.5 - j.cx, dy = (y + 0.5 - (j.cy - 3)) * 1.1;
+          const d = Math.sqrt(dx * dx + dy * dy) / aura_r;
+          if (d >= 1.0) continue;
+          const inten = (1.0 - d) * aura_s;
+          const b = bayer(x, y);
+          if (inten > 0.55 + b * 0.35) px(x, y, C_AURA2);
+          else if (inten > b * 0.9) px(x, y, C_AURA1);
+        }
+      }
+
+      // Rings
+      if (currentMode === 2 || currentMode === 4) {
+        const speed = currentMode === 2 ? 0.9 : 0.6;
+        for (let k = 0; k < 2; k++) {
+          const ph = fracf(t * speed + k * 0.5);
+          const r = 20 + ph * 11;
+          const rf = (1 - ph) * (0.35 + level);
+          const n = Math.floor(r * 2.2);
+          for (let i = 0; i < n; i++) {
+            const ang = i * TAU / n;
+            const rx = iround(j.cx + Math.cos(ang) * r);
+            const ry = iround(j.fy + 2 + Math.sin(ang) * r * 0.92);
+            if ((get_px(rx, ry) === C_BG || get_px(rx, ry) === C_AURA1) && bayer(rx, ry) < rf) {
+              px(rx, ry, rf > 0.6 ? C_ACC : C_AURA2);
+            }
+          }
+        }
+      }
+
+      // Shadow
+      const sh_hw = 13.0 - hop * 0.8;
+      for (let row = 0; row < 3; row++) {
+        const hw = sh_hw * (row === 1 ? 1.0 : 0.72);
+        for (let x = iround(j.cx - hw); x <= iround(j.cx + hw); x++) {
+          if (bayer(x, 58 + row) > Math.abs(x + 0.5 - j.cx) / hw * 0.8) px(x, 58 + row, C_SHADOW);
+        }
+      }
+
+      // Back sparkles
+      const spk_speed = currentMode === 3 ? 2.8 : currentMode === 2 ? 1.2 : currentMode === 4 ? 1.5 : 0.6;
+      const spk_count = currentMode === 0 ? Math.floor(boot * 6) : Math.floor(6 * fade);
+      drawSparkles(j.cx, j.cy, false, spk_speed, spk_count);
+
+      // Limbs setup
+      const base = j.cy + j.b;
+      const step = currentMode === 4 ? Math.sin(t * 5.0) * 0.6 : 0.0;
+      const feet = [
+        { x: j.cx - 5.8, y: base + 0.5 + (happy > 0 ? hop * 0.3 : step), angle: -0.15 },
+        { x: j.cx + 5.8, y: base + 0.5 + (happy > 0 ? hop * 0.3 : -step), angle: 0.15 }
+      ];
+      const adx = j.a - 0.5, ay = j.cy + 3.0;
+      let arms = [
+        { x: j.cx - adx, y: ay, angle: -0.3 },
+        { x: j.cx + adx, y: ay, angle: 0.3 }
+      ];
+      switch (currentMode) {
+        case 2:
+          arms = [ { x: j.cx - adx + 1.0, y: j.fy + 5.0, angle: 0.55 }, { x: j.cx + adx - 1.0, y: j.fy + 5.0, angle: -0.55 } ];
+          break;
+        case 3:
+          arms = [ { x: j.cx - adx, y: ay, angle: -0.35 }, { x: j.cx + 7.5, y: j.fy + j.fb + 3.5, angle: -1.1 } ];
+          break;
+        case 6: {
+          const w = Math.sin(t * 12.0) * 0.35 * fade;
+          arms = [ { x: j.cx - adx, y: ay, angle: -0.3 }, { x: j.cx + adx + 1.0, y: j.cy - 4.0, angle: -2.3 - w } ];
+          break;
+        }
+        case 4: {
+          const w = Math.sin(t * 7.0) * (0.25 + level * 0.45);
+          arms = [ { x: j.cx - adx, y: ay - 1.0, angle: -0.4 - w }, { x: j.cx + adx, y: ay - 1.0, angle: 0.4 - w } ];
+          break;
+        }
+        case 8: {
+          const w = Math.sin(t * 6.0) * 0.15;
+          arms = [ { x: j.cx - adx + 2.0, y: j.fy + 6.5, angle: 0.75 + w }, { x: j.cx + adx - 2.0, y: j.fy + 6.5, angle: -0.75 - w } ];
+          break;
+        }
+        case 9: {
+          const w = Math.sin(t * 24.0) * 0.15;
+          arms = [ { x: j.cx - adx - 1.0, y: ay - 1.5, angle: -0.85 + w }, { x: j.cx + adx + 1.0, y: ay - 1.5, angle: 0.85 - w } ];
+          break;
+        }
+        case 10:
+          arms = [ { x: j.cx - adx - 1.2, y: j.cy - 3.5, angle: 2.2 }, { x: j.cx + adx + 1.2, y: j.cy - 3.5, angle: -2.2 } ];
+          break;
+        default: {
+          const sway = Math.sin(t * 1.8 + 0.6) * 0.08;
+          if (happy > 0) {
+            const wig = Math.sin(t * 14.0) * 0.25;
+            arms = [ { x: j.cx - adx - 1.0, y: j.cy - 4.0, angle: 2.4 + wig }, { x: j.cx + adx + 1.0, y: j.cy - 4.0, angle: -2.4 - wig } ];
+          } else {
+            arms = [ { x: j.cx - adx, y: ay, angle: -0.3 + sway }, { x: j.cx + adx, y: ay, angle: 0.3 - sway } ];
+          }
+        }
+      }
+
+      // Avatar Raster Pass
+      drawAvatar(j, arms, feet);
+
+      // Face
+      const eye_y = j.fy - 0.5;
+      const eye_dx = 5.4;
+      let style = "NORMAL";
+      let open = 1.0 - blink;
+      let mouth = "SMILE";
+      let mouth_open = 0;
+
+      switch (currentMode) {
+        case 0: open = mode_t < 0.9 ? 0.0 : clampf((mode_t - 0.9) / 0.3, 0, 1); break;
+        case 2: style = "WIDE"; mouth = "O"; break;
+        case 3: open *= 0.85; mouth = "HMM"; break;
+        case 4: mouth = "TALK"; mouth_open = level * 1.3 + 0.1 * (0.5 + 0.5 * Math.sin(t * 22.0)); break;
+        case 5: style = "X"; mouth = "FLAT"; break;
+        case 6: open = clampf((1.0 - mode_t / 1.0) * 1.5, 0, 1); mouth = "SMILE"; break;
+        case 7: open *= 0.20; mouth = "O"; break;
+        case 8: style = "HEART"; mouth = "GRIN"; break;
+        case 9: style = "ANGRY"; open *= 0.85; mouth = "POUT"; break;
+        case 10: style = "WIDE"; mouth = "O"; break;
+      }
+      if (happy > 0.2 && currentMode !== 5) {
+        style = "HAPPY";
+        mouth = "GRIN";
+      }
+
+      drawEye(j.fx - eye_dx, eye_y, open, style, eyes.gx, eyes.gy);
+      drawEye(j.fx + eye_dx, eye_y, open, style, eyes.gx, eyes.gy);
+
+      // Brows
+      const bl = iround(j.fx - eye_dx), br = iround(j.fx + eye_dx);
+      const by = iround(eye_y) - 6 - ((currentMode === 2 || currentMode === 10) ? 1 : 0);
+      if (currentMode === 9) {
+        px(bl - 1, by, C_BROW); px(bl, by + 1, C_BROW); px(bl + 1, by + 2, C_BROW);
+        px(br - 1, by + 2, C_BROW); px(br, by + 1, C_BROW); px(br + 1, by, C_BROW);
+      } else {
+        const lift_r = currentMode === 3 ? -1 : 0;
+        px(bl - 1, by, C_BROW); px(bl, by, C_BROW); px(bl + 1, by + 1, C_BROW);
+        px(br - 1, by + 1 + lift_r, C_BROW); px(br, by + lift_r, C_BROW); px(br + 1, by + lift_r, C_BROW);
+      }
+
+      const blush = 0.60 + happy * 0.40 + (currentMode === 8 ? 0.35 : (currentMode === 4 ? 0.15 : 0.0));
+      drawBlush(iround(j.fx - 9.5), iround(eye_y + 3), blush);
+      drawBlush(iround(j.fx + 9.5), iround(eye_y + 3), blush);
+
+      drawMouth(iround(j.fx), iround(eye_y + 5), mouth, mouth_open);
+
+      // Foreground sparkles & effects
+      drawSparkles(j.cx, j.cy, true, spk_speed, spk_count);
+
+      const top = j.cy - j.b - 10.0;
+      if (currentMode === 2 || currentMode === 4) drawWaves(j.cx, j.fy + 2, j.a, level);
+      if (currentMode === 3) drawThoughtDots(j.cx + 14, top + 4);
+      if (happy > 0 || currentMode === 8) drawHearts(j.cx, top + 2, currentMode === 8 ? 1.0 : happy);
+      if (currentMode === 5 || (currentMode === 10 && mode_t < 0.8)) {
+        stamp([".##.", ".##.", ".##.", ".##.", "....", ".##."], iround(j.cx + 16), iround(top + 2), C_ACC, C_ACC);
+      }
+      if (currentMode === 7) drawZzz(j.cx, top + 2);
+      if (currentMode === 9) {
+        const pulse = (Math.floor(t * 8.0) & 1);
+        stamp([".#.#.", "##.##", ".....", "##.##", ".#.#."], iround(j.cx + 12), iround(top + 5) + pulse, C_HEART, C_ACC);
+      }
+      if (dna.particle === 1 && (currentMode === 1 || currentMode === 4)) {
+        for (let i = 0; i < 2; i++) {
+          const ph = fracf(t * 0.65 + i * 0.5);
+          stamp([".##.", "#o.#", "#..#", ".##."], iround(j.cx + (i ? 16 : -19) + Math.sin(ph * TAU) * 2), iround(top + 8 - ph * 12), C_CYAN, C_WHITE);
+        }
+      } else if (dna.particle === 2 && currentMode === 4) {
+        for (let i = 0; i < 2; i++) {
+          const ph = fracf(t * 0.8 + i * 0.5);
+          stamp(["..##", "..#.", "###.", "###."], iround(j.cx + (i ? 15 : -18) + Math.sin(ph * TAU) * 2), iround(top + 4 - ph * 9), i === 0 ? C_CYAN : C_ACC, C_WHITE);
+        }
+      }
+
+      // Blit to Canvas
+      blitToCanvas(pal);
+    }
+
+    function inLimb(l, rx, ry, px_x, px_y) {
+      const dx = px_x - l.x, dy = px_y - l.y;
+      const c = Math.cos(l.angle), s = Math.sin(l.angle);
+      const u = (dx * c + dy * s) / rx;
+      const v = (dy * c - dx * s) / ry;
+      if (u * u + v * v <= 1.0) return { hit: true, u, v };
+      return { hit: false, u: 0, v: 0 };
+    }
+
+    function shadeSkin(nx, ny, x, y, ox, oy, zone) {
+      const r2 = nx * nx + ny * ny;
+      const nz = r2 >= 1.0 ? 0.0 : Math.sqrt(1.0 - r2);
+      const l = -0.38 * nx - 0.52 * ny + 0.78 * nz;
+      const b = bayer(x, y);
+      const rx = x - ox, ry = y - oy;
+
+      if (zone === 1) { // Cream/Belly
+        if (dna.belly === 3 && ((ry + 20) % 3 === 0) && b < 0.70) return C_SKIND;
+        if (dna.belly === 4 && (((ry + (Math.abs(rx) & 1)) % 3) === 0) && ((Math.abs(rx) % 3) !== 0) && b < 0.65) return C_BM;
+        const lv = l + (b - 0.5) * 0.22;
+        return lv > 0.68 ? C_SKINL : lv > 0.25 ? C_SKIN : C_SKIND;
+      }
+
+      if (dna.belly === 5 && ny < -0.15 && ((hash16(rx, ry) & 0x3f) === 0)) {
+        return C_CYAN;
+      }
+
+      const streak = ((hash16(rx, Math.floor((ry + (rx & 1) * 2) / 3)) >>> 4) / 4096.0) - 0.5;
+      const lv = l + (b - 0.5) * 0.22 + streak * 0.18;
+
+      if (dna.ears === 5 && r2 > 0.66) {
+        const rim_str = (r2 - 0.66) * 2.4;
+        if (rim_str > b) return rim_str > b + 0.35 ? C_CYAN : C_CYAND;
+      }
+      if (r2 > 0.80 && (nx * 0.6 + ny * 0.8) > 0.58 && b < 0.48) return C_RIM;
+      if (dna.belly === 0 && r2 < 0.26 && ny > -0.2) {
+        return (r2 < 0.12 && b < 0.65) ? C_SKINL : C_SKIN;
+      }
+      return lv > 0.86 ? C_BH : lv > 0.52 ? C_BL : lv > 0.20 ? C_BM : C_BD;
+    }
+
+    function checkEars(j, px_x, px_y, x, y) {
+      const top_y = j.cy - j.b * 0.75;
+      const dy = top_y - px_y;
+      const side = px_x < j.cx ? -1 : 1;
+
+      if (dna.ears === 1) { // Fox ears
+        if (dy < -3.0 || dy > 14.5) return null;
+        const h = 13.0;
+        const droop_y = j.perk < 0 ? (-j.perk * 3.0 * Math.pow(clampf((dy + 2) / h, 0, 1), 2)) : 0;
+        if (dy - droop_y > h - 1.5) return null;
+        const eff_lt = clampf((dy + 2.0 - droop_y) / h, 0, 1);
+        const splay = (2.8 - j.perk * 1.4) * eff_lt;
+        const ear_cx = j.cx + side * (7.0 + splay + eff_lt * 2.2);
+        const half_w = 4.6 * (1.0 - eff_lt * 0.84);
+        const d = Math.abs(px_x - ear_cx);
+        if (d <= half_w) {
+          const u = d / (half_w + 0.01);
+          if (eff_lt > 0.74) return { m: M_EAR, c: eff_lt > 0.86 ? C_CYAN : C_OUT };
+          if (u < 0.52 && eff_lt > 0.12 && eff_lt < 0.70) return { m: M_EAR, c: C_BLUSH };
+          return { m: M_EAR, c: side * (px_x - ear_cx) < 0 ? C_BL : C_BM };
+        }
+      } else if (dna.ears === 2) { // Dragon horns
+        if (dy < -2.5 || dy > 12.5) return null;
+        const h = 11.5;
+        const lt = clampf((dy + 1.5) / h, 0, 1);
+        if (dy > h - 1.0) return null;
+        const curve = 6.2 + lt * 4.8 - Math.sin(lt * 2.8) * 1.6;
+        const horn_cx = j.cx + side * curve;
+        const half_w = 3.2 * (1.0 - lt * 0.80);
+        if (Math.abs(px_x - horn_cx) <= half_w) {
+          const ridge = (Math.floor(dy + 4.0) & 1) === 0;
+          return { m: M_EAR, c: lt > 0.78 ? C_SKINL : (ridge ? C_SKIN : C_SKIND) };
+        }
+      } else if (dna.ears === 3) { // Axolotl gills
+        const head_y = j.cy - j.b * 0.30;
+        if (px_y < head_y - 14.0 || px_y > head_y + 7.0 || Math.abs(px_x - j.cx) < j.a * 0.72) return null;
+        const GILLS = [
+          { ay_off: -4.5, base_ang: 0.78, len: 9.2 },
+          { ay_off: -1.2, base_ang: 0.28, len: 9.8 },
+          { ay_off:  2.2, base_ang: -0.18, len: 8.2 }
+        ];
+        for (let g = 0; g < 3; g++) {
+          const ax = j.cx + side * (j.a * 0.88 - (g === 0 ? 1.5 : 0.0));
+          const ay = head_y + GILLS[g].ay_off;
+          const wave = Math.sin(j.t * 3.0 + g * 1.1 + (side > 0 ? 0.5 : 0.0)) * 0.14;
+          const ang = GILLS[g].base_ang + j.perk * 0.25 + wave;
+          const rx = (px_x - ax) * side, ry = ay - px_y;
+          const u = rx * Math.cos(ang) + ry * Math.sin(ang);
+          const v = -rx * Math.sin(ang) + ry * Math.cos(ang);
+          if (u < -1.0 || u > GILLS[g].len) continue;
+          const lt = clampf(u / GILLS[g].len, 0, 1);
+          const half_w = 2.0 * (1.0 - lt * 0.55) + 0.65 * Math.abs(Math.sin(u * 2.4));
+          if (Math.abs(v) <= half_w) {
+            return { m: M_GILL, c: lt > 0.76 ? C_CYAN : (Math.abs(v) > 1.0 ? C_BLUSH : C_BLUSHD) };
+          }
+        }
+      } else if (dna.ears === 4) { // Owl tufts
+        if (dy < -3.0 || dy > 11.0) return null;
+        const h = 9.5;
+        const droop = j.perk < 0 ? (-j.perk * 2.8) : 0;
+        const eff_dy = dy + droop;
+        if (eff_dy >= -2.0 && eff_dy <= h) {
+          const lt = clampf((eff_dy + 1.5) / h, 0, 1);
+          const splay = 6.5 + lt * (5.2 - j.perk * 1.5) + lt * lt * 1.6;
+          const tuft_cx = j.cx + side * splay;
+          const half_w = 3.6 * (1.0 - lt * 0.80);
+          if (Math.abs(px_x - tuft_cx) <= half_w) {
+            return { m: M_EAR, c: lt > 0.72 ? C_BROW : (lt > 0.38 ? C_BH : C_BL) };
+          }
+        }
+      } else if (dna.ears === 5) { // Flame hair crest
+        if (dy < -2.0 || dy > 13.5) return null;
+        const t_norm = clampf(dy / 12.5, 0, 1);
+        const sway = Math.sin(j.t * 3.2 + t_norm * 2.0) * 0.8 * t_norm;
+        const dx = px_x - j.cx - sway;
+        const LOCKS = [
+          { ox: -1.2, curve: -3.8, w0: 4.8, h: 12.0 },
+          { ox: -5.0, curve: -2.8, w0: 3.4, h: 8.5 },
+          { ox:  3.5, curve: -1.8, w0: 3.2, h: 9.0 }
+        ];
+        for (let i = 0; i < 3; i++) {
+          if (dy > LOCKS[i].h) continue;
+          const lt = clampf(dy / LOCKS[i].h, 0, 1);
+          const cx_lock = LOCKS[i].ox + LOCKS[i].curve * lt * lt + Math.sin(lt * 4.5 + i) * 0.7;
+          const half_w = LOCKS[i].w0 * (1.0 - lt * 0.82);
+          if (Math.abs(dx - cx_lock) <= half_w) {
+            return { m: M_BODY, c: lt > 0.65 ? C_CYAN : (lt > 0.35 ? C_BH : C_BL) };
+          }
+        }
+      } else if (dna.ears === 6) { // Lop bunny ears hanging down sides
+        const ear_top = j.cy - j.b * 0.55;
+        const edy = px_y - ear_top;
+        if (edy >= 0 && edy <= 15.0) {
+          const lt = edy / 15.0;
+          const ecx = j.cx + side * (j.a * 0.88 + Math.sin(lt * 2.5) * 2.2 + j.perk * 1.2 * lt);
+          const hw = 3.2 * Math.sin(lt * 2.6 + 0.3);
+          if (Math.abs(px_x - ecx) <= hw) {
+            return { m: M_EAR, c: lt > 0.78 ? C_CYAN : (Math.abs(px_x - ecx) < hw * 0.45 ? C_BLUSH : C_BM) };
+          }
+        }
+      } else if (dna.ears === 7) { // Alien antennae
+        if (dy >= -1.0 && dy <= 11.5) {
+          const lt = clampf(dy / 10.0, 0, 1);
+          const sway = Math.sin(j.t * 4.0 + side) * 1.2 * lt;
+          const acx = j.cx + side * (5.5 + lt * 3.8) + sway;
+          const dBulb = (px_x - acx) * (px_x - acx) + (dy - 9.5) * (dy - 9.5);
+          if (dBulb <= 4.2) return { m: M_EAR, c: dBulb <= 1.5 ? C_WHITE : C_CYAN };
+          if (dy < 9.5 && Math.abs(px_x - acx) <= 1.1) return { m: M_EAR, c: C_BL };
+        }
+      }
+      return null;
+    }
+
+    function checkCrown(j, px_x, px_y) {
+      const top_y = j.cy - j.b * 0.80;
+      if (dna.crown === 2) { // Crescent moon
+        const moon_y = top_y - 6.2 + Math.sin(j.t * 2.6) * 0.8;
+        const mdx = px_x - j.cx, mdy = px_y - moon_y;
+        const d_out = mdx * mdx + mdy * mdy;
+        const d_in = (mdx - 1.3) * (mdx - 1.3) + (mdy + 1.1) * (mdy + 1.1);
+        if (d_out <= 8.5 && d_in > 5.2) return { m: M_EAR, c: (mdy < 0 && mdx < 0) ? C_WHITE : C_CYAN };
+      } else if (dna.crown === 3) { // Crystal spike
+        const dy = top_y - px_y;
+        if (dy >= -1.0 && dy <= 8.0) {
+          const lt = clampf((dy + 1.0) / 9.0, 0, 1);
+          if (Math.abs(px_x - j.cx) <= 2.6 * (1.0 - lt * 0.85)) {
+            return { m: M_EAR, c: (lt > 0.55 || px_x < j.cx) ? C_CYAN : C_CYAND };
+          }
+        }
+      } else if (dna.crown === 4) { // Halo ring
+        const halo_y = top_y - 5.5 + Math.sin(j.t * 2.8) * 0.7;
+        const dx = (px_x - j.cx) / 6.5, dy = (px_y - halo_y) / 2.2;
+        const d = dx * dx + dy * dy;
+        if (d >= 0.55 && d <= 1.35) return { m: M_EAR, c: C_CYAN };
+      }
+      return null;
+    }
+
+    function checkWings(j, px_x, px_y, x, y) {
+      if (dna.wings === 0) return null;
+      const sh_y = j.cy + 1.0;
+      const dx_abs = Math.abs(px_x - j.cx);
+      const start_x = j.a * 0.78;
+      if (dx_abs < start_x - 1.0 || dx_abs > start_x + 12.5) return null;
+      const wx = dx_abs - start_x;
+      const wt = clampf(wx / 11.0, 0, 1);
+      const flap_dy = j.wing_flap * 4.5 * wt;
+
+      if (dna.wings === 1) { // Dragon bat wings
+        const top_arch = sh_y - 4.0 - Math.sin(wt * 2.5) * 4.5 - flap_dy;
+        const scallop = Math.abs(Math.sin(wt * Math.PI * 2.0)) * 2.2;
+        const bot_arch = sh_y + 5.5 - wt * 2.0 - scallop - flap_dy * 0.7;
+        if (px_y >= top_arch && px_y <= bot_arch) {
+          return { m: M_WING, c: px_y <= top_arch + 1.8 ? C_BL : (bayer(x, y) < 0.45 ? C_BLUSHD : C_TONGUE) };
+        }
+      } else if (dna.wings === 2) { // Fairy wings
+        const top_arch = sh_y - 6.0 - Math.sin(wt * 2.8) * 5.0 - flap_dy;
+        const bot_arch = sh_y + 6.0 - Math.cos(wt * 1.5) * 3.0 - flap_dy * 0.5;
+        if (px_y >= top_arch && px_y <= bot_arch) {
+          return { m: M_WING, c: ((x + y) & 1) === 0 ? C_CYAN : C_SKINL };
+        }
+      }
+      return null;
+    }
+
+    function checkTail(j, px_x, px_y, x, y) {
+      if (dna.tail === 0) return null;
+      const base_x = j.cx + j.a * 0.52;
+      const base_y = j.cy + j.b * 0.58;
+      const dx = px_x - base_x, dy = base_y - px_y;
+      if (dx < -2.0 || dx > 16.5 || dy < -4.5 || dy > 18.0) return null;
+      const wag = Math.sin(j.t * j.tail_speed) * 2.2;
+      const t_est = clampf((dx * 0.66 + dy * 0.74) / 16.0, 0, 1);
+      const cx_t = t_est * 11.5 + Math.sin(t_est * 3.1) * 2.0;
+      const cy_t = t_est * t_est * 12.0 + wag * t_est;
+      const dist2 = (dx - cx_t) * (dx - cx_t) + (dy - cy_t) * (dy - cy_t);
+
+      if (dna.tail === 1) { // Fluffy fox tail
+        const r = 5.2 * Math.sin(clampf(t_est * 2.6 + 0.25, 0, 3.05));
+        if (dist2 <= r * r) {
+          const b = bayer(x, y);
+          if (t_est > 0.62 + (b - 0.5) * 0.14) {
+            return { m: M_TAIL, c: (t_est > 0.84 && b < 0.5) ? C_CYAN : C_SKINL };
+          }
+          return { m: M_TAIL, c: dy > cy_t + 1.0 ? C_BL : C_BM };
+        }
+      } else if (dna.tail === 2) { // Dragon flame tail
+        const r = t_est < 0.75 ? 3.8 * (1.0 - t_est * 0.65) : 3.6 * Math.sin((1.0 - t_est) * 2.0 * Math.PI + 0.2);
+        if (dist2 <= r * r) {
+          if (t_est > 0.72) return { m: M_TAIL, c: dist2 < r * r * 0.4 ? C_WHITE : C_CYAN };
+          return { m: M_TAIL, c: dy > cy_t ? C_BL : C_BM };
+        }
+      } else if (dna.tail === 3) { // Axolotl fin tail
+        const fin_r = 4.8 * Math.sin(t_est * Math.PI * 0.88 + 0.2);
+        const core_r = 2.0 * (1.0 - t_est * 0.75);
+        if (dist2 <= fin_r * fin_r) {
+          return { m: M_TAIL, c: dist2 <= core_r * core_r ? C_BM : (((x + y) & 1) === 0 ? C_CYAN : C_BL) };
+        }
+      }
+      return null;
+    }
+
+    function drawAvatar(j, arms, feet) {
+      const ox = iround(j.cx), oy = iround(j.cy);
+      for (let y = 0; y < H; y++) {
+        const py = y + 0.5;
+        const v = (py - j.cy) / j.b;
+        const head_w = Math.exp(-(v + 0.22) * (v + 0.22) * 24.0) * dna.headWiden;
+        const neck_p = Math.exp(-(v - 0.08) * (v - 0.08) * 18.0) * dna.neckPinch;
+        const belly_b = v > 0.10 ? Math.sin(clampf((v - 0.10) * 1.85, 0, 1.57)) * dna.bellyBulge : 0.0;
+        const row_a = j.a * (0.98 + head_w - neck_p + belly_b);
+        const v_pow = Math.abs(v) <= 1.2 ? Math.pow(Math.abs(v), v < 0 ? 2.3 : 2.8) : 10.0;
+
+        for (let x = 0; x < W; x++) {
+          const px_x = x + 0.5;
+
+          // 1. Arms
+          let hitArm = false;
+          for (let a = 0; a < 2; a++) {
+            const res = inLimb(arms[a], 2.8, 5.2, px_x, py);
+            if (res.hit) {
+              mask[y * W + x] = M_ARM;
+              const nx = res.u * 0.85 + (a ? 0.2 : -0.2);
+              px(x, y, shadeSkin(nx, res.v * 0.8, x, y, ox, oy, 0));
+              hitArm = true;
+              break;
+            }
+          }
+          if (hitArm) continue;
+
+          // 2. Crown & Ears (except gills which go behind body edge)
+          const cr = checkCrown(j, px_x, py);
+          if (cr) { mask[y * W + x] = cr.m; px(x, y, cr.c); continue; }
+
+          if (dna.ears !== 3) {
+            const er = checkEars(j, px_x, py, x, y);
+            if (er) { mask[y * W + x] = er.m; px(x, y, er.c); continue; }
+          }
+
+          // 3. Body
+          const u = (px_x - j.cx) / row_a;
+          const bf = Math.abs(u) <= 1.2 ? Math.pow(Math.abs(u), v < 0 ? 2.3 : 2.8) + v_pow : 10.0;
+          const tuft = ((hash16(x - ox, y - oy) - 32768) / 32768.0) * 0.16;
+
+          if (bf <= 1.0 + tuft) {
+            let isCream = false;
+            if (dna.belly === 1) { // Hoodie face panel
+              const fu = (px_x - j.fx) / j.fa, fv = (py - j.fy) / j.fb;
+              if (Math.pow(fu, 4) + Math.pow(fv, 4) <= 1.0) {
+                mask[y * W + x] = M_FACE;
+                px(x, y, fv < -0.55 ? C_SKIND : C_SKIN);
+                continue;
+              }
+            } else if (dna.belly === 2) { // Fox cheek & bib
+              const cheek = (v > -0.28 && v < 0.08 && Math.abs(u) < 0.78 && v > -0.05 - 0.22 * Math.cos(u * 3.5));
+              const bib = (v >= 0.08 && v < 0.85 && Math.abs(u) < 0.52 * (1.0 - (v - 0.08) * 0.65));
+              isCream = cheek || bib;
+            } else if (dna.belly === 3 || dna.belly === 5) { // Belly patch
+              isCream = (v >= 0.08 && v < 0.86 && Math.abs(u) < 0.55 * (1.0 - (v - 0.45) * (v - 0.45) * 0.9));
+            } else if (dna.belly === 4) { // Owl double disc + breast
+              const dl = (u + 0.30) * (u + 0.30) * 2.1 + (v + 0.22) * (v + 0.22) * 3.8;
+              const dr = (u - 0.30) * (u - 0.30) * 2.1 + (v + 0.22) * (v + 0.22) * 3.8;
+              const breast = (v >= 0.08 && v < 0.86 && Math.abs(u) < 0.58 * (1.0 - (v - 0.42) * (v - 0.42) * 1.1));
+              isCream = (dl <= 0.42 || dr <= 0.42 || breast);
+            }
+            mask[y * W + x] = M_BODY;
+            px(x, y, shadeSkin(u * 0.95, v * 0.95, x, y, ox, oy, isCream ? 1 : 0));
+            continue;
+          }
+
+          // Axolotl gills
+          if (dna.ears === 3) {
+            const gr = checkEars(j, px_x, py, x, y);
+            if (gr) { mask[y * W + x] = gr.m; px(x, y, gr.c); continue; }
+          }
+
+          // 4. Feet
+          let hitFoot = false;
+          for (let f = 0; f < 2; f++) {
+            const res = inLimb(feet[f], 4.2, 2.6, px_x, py);
+            if (res.hit) {
+              mask[y * W + x] = M_FOOT;
+              px(x, y, res.v < -0.15 ? C_BL : C_BD);
+              hitFoot = true;
+              break;
+            }
+          }
+          if (hitFoot) continue;
+
+          // 5. Wings & Tail
+          const wr = checkWings(j, px_x, py, x, y);
+          if (wr) { mask[y * W + x] = wr.m; px(x, y, wr.c); continue; }
+
+          const tr = checkTail(j, px_x, py, x, y);
+          if (tr) { mask[y * W + x] = tr.m; px(x, y, tr.c); }
+        }
+      }
+
+      // Outline Pass
+      const N4 = [[1,0],[-1,0],[0,1],[0,-1]];
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const m = mask[y * W + x];
+          if (m === M_NONE || m === M_FACE) continue;
+          for (let k = 0; k < 4; k++) {
+            const xx = x + N4[k][0], yy = y + N4[k][1];
+            const n = (xx >= 0 && xx < W && yy >= 0 && yy < H) ? mask[yy * W + xx] : M_NONE;
+            if (n === M_NONE || (m === M_ARM && (n === M_BODY || n === M_FACE)) || (m === M_BODY && n === M_FOOT)) {
+              px(x, y, m === M_GILL ? C_OUT2 : C_OUT);
+              break;
+            }
+          }
+        }
+      }
+
+      // Forehead star gem (crown === 1)
+      if (dna.crown === 1) {
+        const gx = iround(j.fx);
+        const gy = iround(j.cy - j.b - 2.0 + Math.sin(j.t * 3.0) * 0.6);
+        px(gx, gy - 1, C_CYAN);
+        px(gx - 1, gy, C_CYAN); px(gx, gy, C_WHITE); px(gx + 1, gy, C_CYAN);
+        px(gx, gy + 1, C_CYAN);
+      }
+    }
+
+    function drawEye(ex, ey, openness, style, gx, gy) {
+      const cx = iround(ex), cy = iround(ey);
+      if (style === "HAPPY") {
+        stamp([".####.", "##..##", "#....#"], cx - 3, cy - 1, C_IRIS, C_IRIS);
+        return;
+      }
+      if (style === "X") {
+        stamp(["#...#", ".#.#.", "..#..", ".#.#.", "#...#"], cx - 2, cy - 2, C_IRIS, C_IRIS);
+        return;
+      }
+      if (style === "HEART") {
+        stamp([".##.##.", "#######", "#o#####", ".#####.", "..###..", "...#..."], cx - 3, cy - 3, C_HEART, C_WHITE);
+        return;
+      }
+      if (openness < 0.25) {
+        stamp([".####.", "#....#"], cx - 3, cy + 1, C_IRIS, C_IRIS);
+        return;
+      }
+
+      if (dna.eyes === 4) { // Classic small bead eyes
+        const b_cx = iround(ex + gx * 0.8), b_cy = iround(ey + gy * 0.7);
+        stamp([".##.", "#o##", "####", ".##."], b_cx - 2, b_cy - 2, C_IRIS, C_SHINE);
+        return;
+      }
+
+      const rx = dna.eyes === 3 ? 3 : 4;
+      const ry = (style === "WIDE" ? rx + 1 : rx);
+      const eff_ry = Math.max(1, iround(ry * clampf(openness, 0.3, 1.0)));
+      const px_off = gx * 1.0, py_off = gy * 0.8;
+
+      for (let dy = -eff_ry; dy <= eff_ry; dy++) {
+        if (style === "ANGRY" && dy < -1) continue;
+        for (let dx = -rx; dx <= rx; dx++) {
+          const nd = (dx * dx) / (rx * rx + 0.5) + (dy * dy) / (eff_ry * eff_ry + 0.5);
+          if (nd > 1.0) continue;
+          const id_x = dx - px_off, id_y = dy - py_off;
+          let col = C_WHITE;
+
+          if (dna.eyes === 1) { // Dragon slit pupil
+            const pupil_d = (id_x * id_x) * 1.8 + (id_y * id_y) * 0.55;
+            const iris_d = id_x * id_x + id_y * id_y;
+            if (pupil_d <= 3.2) col = C_IRIS;
+            else if (iris_d <= 9.2) col = (dy > 0 && bayer(cx + dx, cy + dy) < 0.45) ? C_SKINL : C_IRIS_R;
+          } else if (dna.eyes === 2) { // Owl large amber ring
+            const id2 = id_x * id_x + id_y * id_y;
+            col = nd > 0.82 ? C_OUT : (id2 <= 4.2 ? C_IRIS : C_IRIS_R);
+          } else if (dna.eyes === 3) { // Axolotl dark bead + lower cyan crescent
+            col = (dy > 0 && nd > 0.52 && bayer(cx + dx, cy + dy) < 0.65) ? C_IRIS_R : C_IRIS;
+          } else { // Starry eyes (0)
+            const id2 = id_x * id_x + id_y * id_y;
+            if (id2 <= 3.6) col = C_IRIS;
+            else if (id2 <= 8.5) col = (dy > 0 && bayer(cx + dx, cy + dy) < 0.45) ? C_CYAN : C_IRIS_R;
+          }
+          px(cx + dx, cy + dy, col);
+        }
+      }
+      const sx = cx + iround(px_off * 0.5) - 1;
+      const sy = cy + iround(py_off * 0.5) - 1;
+      px(sx, sy, C_SHINE); px(sx - 1, sy, C_SHINE); px(sx, sy - 1, C_SHINE);
+      if (eff_ry >= 3) px(sx + 2, sy + 2, C_CYAN);
+    }
+
+    function drawBlush(x, y, strength) {
+      const CHEEK = [".##.", "####", ".##."];
+      for (let j = 0; j < 3; j++) {
+        for (let i = 0; i < 4; i++) {
+          if (CHEEK[j][i] !== '#') continue;
+          const b = bayer(x + i, y + j);
+          if (b < strength) px(x - 2 + i, y + j, (j === 1 && b < strength * 0.5) ? C_BLUSHD : C_BLUSH);
+        }
+      }
+    }
+
+    function drawMouth(x, y, m, open) {
+      if (dna.mouth === 3) { // Owl beak
+        px(x, y - 2, C_CYAN);
+        px(x - 1, y - 1, C_CYAND); px(x, y - 1, C_CYAN); px(x + 1, y - 1, C_CYAND);
+        px(x, y, C_CYAND);
+        if (m === "O" || m === "TALK" || m === "GRIN") {
+          px(x - 1, y + 1, C_MOUTH); px(x, y + 1, C_TONGUE); px(x + 1, y + 1, C_MOUTH);
+        }
+        return;
+      }
+
+      if (dna.mouth === 1) { // Cute button nose
+        px(x - 1, y - 2, C_MOUTH); px(x, y - 2, C_MOUTH); px(x + 1, y - 2, C_MOUTH);
+        px(x, y - 1, C_MOUTH);
+      } else if (dna.mouth === 2) { // Dragon nostrils
+        px(x - 2, y - 2, C_MOUTH); px(x + 2, y - 2, C_MOUTH);
+      }
+
+      if (m === "SMILE") {
+        if (dna.mouth === 1) stamp(["#.#.#", ".#.#."], x - 2, y, C_MOUTH, C_MOUTH);
+        else if (dna.mouth === 2) stamp(["#....#", ".#o##."], x - 3, y, C_MOUTH, C_WHITE);
+        else stamp(["#....#", "######", ".#oo#.", "..##.."], x - 3, y, C_MOUTH, C_TONGUE);
+      } else if (m === "O") {
+        stamp([".##.", "#oo#", ".##."], x - 2, y, C_MOUTH, C_TONGUE);
+      } else if (m === "HMM") {
+        stamp(["..#", "##."], x - 1, y + 1, C_MOUTH, C_MOUTH);
+      } else if (m === "TALK") {
+        const h = 2 + iround(clampf(open, 0, 1) * 3.0);
+        const w = h > 2 ? 6 : 4;
+        for (let j = 0; j < h; j++) {
+          const inset = j === h - 1 ? 1 : 0;
+          for (let i = inset; i < w - inset; i++) {
+            const tongue = h >= 3 && j >= h - 2 && i > inset && i < w - inset - 1;
+            px(x - (w >> 1) + i, y + j, tongue ? C_TONGUE : C_MOUTH);
+          }
+        }
+      } else if (m === "GRIN") {
+        stamp(["#######", ".##o##.", "..ooo..", "...#..."], x - 3, y, C_MOUTH, C_TONGUE);
+      } else if (m === "FLAT") {
+        stamp(["####"], x - 2, y + 1, C_MOUTH, C_MOUTH);
+      } else if (m === "POUT") {
+        stamp([".####.", "#....#"], x - 3, y + 1, C_MOUTH, C_MOUTH);
+      }
+    }
+
+    function drawSparkles(cx, cy, front, speed, count) {
+      for (let i = 0; i < count; i++) {
+        const a = t * speed + i * TAU / count;
+        const s = Math.sin(a);
+        if ((s > 0) !== front) continue;
+        const rr = 25.0 + 2.0 * Math.sin(i * 1.9 + t * 0.7);
+        const x = iround(cx + Math.cos(a) * rr);
+        const y = iround(cy - 3 + s * rr * 0.42);
+        const tw = 0.5 + 0.5 * Math.sin(t * 5.0 + i * 1.7);
+        const arm = front ? C_ACC : C_AURA2;
+        const core = front ? C_WHITE : C_SPK;
+        if (tw > 0.8) {
+          px(x, y, core);
+          for (let k = 1; k <= 2; k++) {
+            const c = k === 1 ? (front ? C_SPK : arm) : arm;
+            px(x + k, y, c); px(x - k, y, c); px(x, y + k, c); px(x, y - k, c);
+          }
+        } else if (tw > 0.45) {
+          px(x, y, front ? C_SPK : arm);
+          px(x + 1, y, arm); px(x - 1, y, arm); px(x, y + 1, arm); px(x, y - 1, arm);
+        } else if (tw > 0.15) px(x, y, arm);
+      }
+    }
+
+    function drawWaves(cx, cy, body_rx, level) {
+      const n = Math.min(3, 1 + Math.floor(clampf(level, 0, 1) * 3.2));
+      for (let k = 0; k < n; k++) {
+        const r = body_rx + 5.0 + k * 3.0;
+        const span = 2 + k;
+        const flick = 0.5 + 0.5 * Math.sin(t * 12.0 - k * 1.4);
+        for (let side = -1; side <= 1; side += 2) {
+          for (let j = -span; j <= span; j++) {
+            const xo = r - (j * j) / (2.0 * r) * 3.0;
+            const x = iround(cx + side * xo), y = iround(cy - 2 + j);
+            if (k === 0 || bayer(x, y) < 0.35 + flick * 0.65) {
+              px(x, y, k === 0 ? C_ACC : (k === 1 ? C_G1 : C_G2));
+            }
+          }
+        }
+      }
+    }
+
+    function drawThoughtDots(x, y) {
+      const active = Math.floor(fracf(t * 1.6) * 3.0);
+      for (let i = 0; i < 3; i++) {
+        const bx = iround(x + i * 4), by = iround(y - i * 3) - (i === active ? 1 : 0);
+        const c = i === active ? C_G0 : C_ACC;
+        px(bx, by, c); px(bx + 1, by, c); px(bx, by + 1, c); px(bx + 1, by + 1, i === active ? C_G1 : C_G2);
+      }
+    }
+
+    function drawHearts(cx, top, amount) {
+      const HEART = [".#.#.", "#o###", "#####", ".###.", "..#.."];
+      for (let i = 0; i < 2; i++) {
+        const ph = fracf(t * 0.9 + i * 0.5);
+        if (ph > amount) continue;
+        stamp(HEART, iround(cx + (i ? 13 : -18) + Math.sin(ph * TAU + i) * 2), iround(top - ph * 10), C_HEART, C_WHITE);
+      }
+    }
+
+    function drawZzz(cx, top) {
+      const Z_BMP = ["####", "..#.", ".#..", "####"];
+      for (let i = 0; i < 2; i++) {
+        const ph = fracf(t * 0.45 + i * 0.5);
+        stamp(Z_BMP, iround(cx + 12 + ph * 6 + Math.sin(ph * TAU) * 1.5), iround(top + 4 - ph * 10), i === 0 ? C_G0 : C_ACC, C_WHITE);
+      }
+    }
+
+    function blitToCanvas(pal) {
+      const canvas = document.getElementById("previewCanvas");
+      const ctx = canvas.getContext("2d");
+      const S = 5; // 64 * 5 = 320
+      const showGrid = document.getElementById("chkGrid").checked;
+      const imgData = ctx.createImageData(W * S, H * S);
+      const data = imgData.data;
+
+      for (let y = 0; y < H * S; y++) {
+        const cellY = Math.floor(y / S);
+        const edgeY = showGrid && (y % S === S - 1);
+        for (let x = 0; x < W * S; x++) {
+          const cellX = Math.floor(x / S);
+          const edgeX = showGrid && (x % S === S - 1);
+          const colIdx = fb[cellY * W + cellX];
+          const c = pal[colIdx];
+          const dim = (edgeX || edgeY) ? 0.72 : 1.0;
+          const idx = (y * W * S + x) * 4;
+          data[idx]     = Math.min(255, Math.round(c.r * dim));
+          data[idx + 1] = Math.min(255, Math.round(c.g * dim));
+          data[idx + 2] = Math.min(255, Math.round(c.b * dim));
+          data[idx + 3] = 255;
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    /* =========================================================================
+     * 4. C-CODE GENERATOR (Outputs complete standalone muse_pixel_custom.c)
+     * ========================================================================= */
+    function generateCCode() {
+      const fixed = computeFixedPalette();
+      return `// Copyright (c) Meta Platforms, Inc. and affiliates.
+// Auto-generated by Muse Avatar Creator — ${dna.name} (Seed: 0x${dna.seed.toString(16).toUpperCase()})
+
+#include "muse_pixel.h"
+
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define W MUSE_PX_W
+#define H MUSE_PX_H
+#define TAU 6.2831853f
+
+/* DNA Configuration Macros */
+#define DNA_EARS      ${dna.ears}
+#define DNA_CROWN     ${dna.crown}
+#define DNA_WINGS     ${dna.wings}
+#define DNA_TAIL      ${dna.tail}
+#define DNA_BELLY     ${dna.belly}
+#define DNA_EYES      ${dna.eyes}
+#define DNA_MOUTH     ${dna.mouth}
+#define DNA_PARTICLE  ${dna.particle}
+
+#define DNA_BODY_RX   ${dna.bodyRx.toFixed(2)}f
+#define DNA_BODY_RY   ${dna.bodyRy.toFixed(2)}f
+#define DNA_HEAD_W    ${dna.headWiden.toFixed(2)}f
+#define DNA_NECK_P    ${dna.neckPinch.toFixed(2)}f
+#define DNA_BELLY_B   ${dna.bellyBulge.toFixed(2)}f
+
+enum {
+    C_BG = 0, C_OUT, C_OUT2, C_BD, C_BM, C_BL, C_BH, C_RIM,
+    C_SKIND, C_SKIN, C_SKINL, C_IRIS, C_IRIS_R, C_SHINE,
+    C_BROW, C_BLUSH, C_BLUSHD, C_MOUTH, C_TONGUE, C_CYAN, C_CYAND,
+    C_G0, C_G1, C_G2, C_G3, C_AURA1, C_AURA2, C_SPK, C_ACC,
+    C_SHADOW, C_HEART, C_WHITE, C_COUNT,
+};
+
+typedef struct { float r, g, b; } rgb_t;
+typedef struct { uint32_t f[4]; uint32_t acc; } scheme_t;
+
+static const scheme_t SCHEMES[MUSE_MODE_COUNT] = {
+    [MUSE_MODE_BOOT]      = { { 0xffffff, 0xcfe0ff, 0x6fd8ff, 0x2b7de0 }, 0x7ce8ff },
+    [MUSE_MODE_IDLE]      = { { 0xfffbe0, 0xffe46b, 0x5ce1ff, 0x2a6bd9 }, ${hexStr(fixed[C_CYAN])} },
+    [MUSE_MODE_LISTENING] = { { 0xe8faff, 0x8fdcff, 0x3fa2ff, 0x2a5bd7 }, 0x5cb8ff },
+    [MUSE_MODE_THINKING]  = { { 0xffe6ff, 0xff9cf0, 0xd35bff, 0x7a2bd9 }, 0xe07bff },
+    [MUSE_MODE_SPEAKING]  = { { 0xeafff4, 0x9ff5cf, 0x3fd9a0, 0x1f9a7a }, 0x6ff0bf },
+    [MUSE_MODE_ERROR]     = { { 0xffd6d6, 0xff6b6b, 0xc7304a, 0x6b1a3a }, 0xff5c5c },
+    [MUSE_MODE_OFF]       = { { 0xd8d4ff, 0x8f86d9, 0x5a4fb0, 0x2e2870 }, 0x7c72d0 },
+    [MUSE_MODE_SLEEPY]    = { { 0xe0e8ff, 0x8ca0e8, 0x4858b0, 0x1e2660 }, 0x7088e0 },
+    [MUSE_MODE_LOVE]      = { { 0xffe8f4, 0xff94c8, 0xf04898, 0x981858 }, 0xff68b4 },
+    [MUSE_MODE_ANGRY]     = { { 0xfff0d0, 0xff8830, 0xd82818, 0x700808 }, 0xff4820 },
+    [MUSE_MODE_SURPRISED] = { { 0xffffff, 0xfff070, 0x40e8ff, 0x1880d0 }, 0x90f4ff },
+};
+
+static const uint32_t FIXED[C_COUNT] = {
+    [C_BG]     = ${hexStr(fixed[C_BG])},
+    [C_OUT]    = ${hexStr(fixed[C_OUT])},
+    [C_OUT2]   = ${hexStr(fixed[C_OUT2])},
+    [C_BD]     = ${hexStr(fixed[C_BD])},
+    [C_BM]     = ${hexStr(fixed[C_BM])},
+    [C_BL]     = ${hexStr(fixed[C_BL])},
+    [C_BH]     = ${hexStr(fixed[C_BH])},
+    [C_SKIND]  = ${hexStr(fixed[C_SKIND])},
+    [C_SKIN]   = ${hexStr(fixed[C_SKIN])},
+    [C_SKINL]  = ${hexStr(fixed[C_SKINL])},
+    [C_IRIS]   = ${hexStr(fixed[C_IRIS])},
+    [C_IRIS_R] = ${hexStr(fixed[C_IRIS_R])},
+    [C_SHINE]  = ${hexStr(fixed[C_SHINE])},
+    [C_BROW]   = ${hexStr(fixed[C_BROW])},
+    [C_BLUSH]  = ${hexStr(fixed[C_BLUSH])},
+    [C_BLUSHD] = ${hexStr(fixed[C_BLUSHD])},
+    [C_MOUTH]  = ${hexStr(fixed[C_MOUTH])},
+    [C_TONGUE] = ${hexStr(fixed[C_TONGUE])},
+    [C_CYAN]   = ${hexStr(fixed[C_CYAN])},
+    [C_CYAND]  = ${hexStr(fixed[C_CYAND])},
+    [C_SHADOW] = ${hexStr(fixed[C_SHADOW])},
+    [C_HEART]  = ${hexStr(fixed[C_HEART])},
+    [C_WHITE]  = ${hexStr(fixed[C_WHITE])},
+};
+
+static rgb_t s_scheme[5];
+static bool s_scheme_init;
+static uint16_t s_pal[C_COUNT];
+static uint16_t s_pal_dim[C_COUNT];
+static uint8_t s_fb[W * H];
+static uint8_t s_mask[W * H];
+
+static const uint8_t BAYER4[4][4] = {
+    { 0, 8, 2, 10 }, { 12, 4, 14, 6 }, { 3, 11, 1, 9 }, { 15, 7, 13, 5 },
+};
+
+#define Q 12
+#define ONE (1 << Q)
+#define QF(v) ((int32_t)((v) * ONE))
+#define POW_LUT_N 256
+#define POW_LUT_MAX_Q QF(1.2f)
+#define SQRT_LUT_N 1024
+static int16_t s_pow_dome[POW_LUT_N + 1];
+static int16_t s_pow_base[POW_LUT_N + 1];
+static int16_t s_sqrt[SQRT_LUT_N + 1];
+
+static void init_luts(void)
+{
+    for (int i = 0; i <= POW_LUT_N; i++) {
+        float u = (float)i * POW_LUT_MAX_Q / POW_LUT_N / ONE;
+        s_pow_dome[i] = (int16_t)(powf(u, 2.3f) * ONE);
+        s_pow_base[i] = (int16_t)(powf(u, 2.8f) * ONE);
+    }
+    for (int i = 0; i <= SQRT_LUT_N; i++) {
+        s_sqrt[i] = (int16_t)(sqrtf((float)i / SQRT_LUT_N) * ONE);
+    }
+}
+
+static inline int32_t pow_q(const int16_t *lut, int32_t a) { return lut[(a * (POW_LUT_N * 65536 / POW_LUT_MAX_Q)) >> 16]; }
+static inline int32_t sqrt_q(int32_t x) { return s_sqrt[x >> 2]; }
+static inline int32_t bayer_q(int x, int y) { return BAYER4[y & 3][x & 3] * (ONE / 16) + ONE / 32; }
+static inline float bayer(int x, int y) { return (BAYER4[y & 3][x & 3] + 0.5f) / 16.0f; }
+static inline rgb_t hex_rgb(uint32_t c) { return (rgb_t){ (float)((c >> 16) & 0xff), (float)((c >> 8) & 0xff), (float)(c & 0xff) }; }
+static inline rgb_t mix(rgb_t a, rgb_t b, float t) { return (rgb_t){ a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t }; }
+static inline rgb_t scale_rgb(rgb_t a, float k) { return (rgb_t){ a.r * k, a.g * k, a.b * k }; }
+
+static inline uint16_t to565(rgb_t c)
+{
+    int r = (int)(c.r + 0.5f), g = (int)(c.g + 0.5f), b = (int)(c.b + 0.5f);
+    r = r < 0 ? 0 : (r > 255 ? 255 : r);
+    g = g < 0 ? 0 : (g > 255 ? 255 : g);
+    b = b < 0 ? 0 : (b > 255 ? 255 : b);
+    return (uint16_t)(((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3));
+}
+
+uint32_t muse_pixel_accent(muse_mode_t mode)
+{
+    return SCHEMES[mode < MUSE_MODE_COUNT ? mode : MUSE_MODE_IDLE].acc;
+}
+
+static void update_palette(const scheme_t *target, float dt)
+{
+    rgb_t tgt[5];
+    for (int i = 0; i < 4; i++) tgt[i] = hex_rgb(target->f[i]);
+    tgt[4] = hex_rgb(target->acc);
+    float k = s_scheme_init ? 1.0f - expf(-dt * 7.0f) : 1.0f;
+    for (int i = 0; i < 5; i++) s_scheme[i] = mix(s_scheme[i], tgt[i], k);
+    s_scheme_init = true;
+
+    rgb_t pal[C_COUNT];
+    for (int i = 0; i < C_COUNT; i++) pal[i] = hex_rgb(FIXED[i]);
+    rgb_t acc = s_scheme[4];
+    pal[C_G0] = s_scheme[0]; pal[C_G1] = s_scheme[1]; pal[C_G2] = s_scheme[2]; pal[C_G3] = s_scheme[3];
+    pal[C_ACC] = acc;
+    pal[C_RIM] = mix(pal[C_CYAN], acc, 0.5f);
+    pal[C_AURA1] = scale_rgb(acc, 0.16f);
+    pal[C_AURA2] = scale_rgb(acc, 0.34f);
+    pal[C_SPK] = mix(acc, pal[C_WHITE], 0.45f);
+    for (int i = 0; i < C_COUNT; i++) {
+        s_pal[i] = to565(pal[i]);
+        s_pal_dim[i] = to565(scale_rgb(pal[i], 0.72f));
+    }
+}
+
+static inline void px(int x, int y, uint8_t c) { if ((unsigned)x < W && (unsigned)y < H) s_fb[y * W + x] = c; }
+static inline uint8_t get_px(int x, int y) { return ((unsigned)x < W && (unsigned)y < H) ? s_fb[y * W + x] : C_BG; }
+static inline int iround(float v) { return (int)floorf(v + 0.5f); }
+static inline float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
+static inline float fracf(float v) { return v - floorf(v); }
+
+static uint32_t s_rng = 0x9e3779b9u;
+static float frand(void) { s_rng ^= s_rng << 13; s_rng ^= s_rng >> 17; s_rng ^= s_rng << 5; return (float)(s_rng & 0xffffff) / (float)0x1000000; }
+
+static void stamp(const char *const *rows, int nrows, int x0, int y0, uint8_t fill, uint8_t alt)
+{
+    for (int r = 0; r < nrows; r++) {
+        for (int c = 0; rows[r][c]; c++) {
+            if (rows[r][c] == '#') px(x0 + c, y0 + r, fill);
+            else if (rows[r][c] == 'o') px(x0 + c, y0 + r, alt);
+        }
+    }
+}
+
+typedef struct { float next_blink, blink_start, next_gaze, gx, gy, tgx, tgy, last_t; } eyes_t;
+static eyes_t s_eyes = { .next_blink = 1.5f, .blink_start = -10, .next_gaze = 1.0f };
+
+static float eyes_update(const muse_pose_t *p, float dt)
+{
+    eyes_t *e = &s_eyes;
+    if (p->t >= e->next_blink) {
+        e->blink_start = p->t;
+        e->next_blink = p->t + (frand() < 0.2f ? 0.28f : 2.2f + frand() * 3.0f);
+    }
+    if (p->t >= e->next_gaze) {
+        e->next_gaze = p->t + 1.2f + frand() * 2.4f;
+        if (frand() < 0.35f) { e->tgx = 0; e->tgy = 0; }
+        else { e->tgx = frand() * 2 - 1; e->tgy = (frand() * 2 - 1) * 0.6f; }
+    }
+    float tgx = e->tgx, tgy = e->tgy;
+    switch (p->mode) {
+    case MUSE_MODE_LISTENING: case MUSE_MODE_SURPRISED: tgx = 0; tgy = 0.0f; break;
+    case MUSE_MODE_THINKING: tgx = 0.75f * sinf(p->mode_t * 1.3f) + 0.25f; tgy = -0.85f; break;
+    case MUSE_MODE_SPEAKING: tgx *= 0.3f; tgy = 0; break;
+    case MUSE_MODE_SLEEPY: tgx = 0; tgy = 0.4f; break;
+    case MUSE_MODE_ANGRY: tgx = 0; tgy = -0.2f; break;
+    default: break;
+    }
+    float k = 1.0f - expf(-dt * 14.0f);
+    e->gx += (tgx - e->gx) * k; e->gy += (tgy - e->gy) * k;
+    float bt = (p->t - e->blink_start) / 0.16f;
+    return (bt < 0 || bt > 1) ? 0 : (1.0f - fabsf(bt * 2 - 1));
+}
+
+static void draw_aura(float cx, float cy, float radius, float strength)
+{
+    int x0 = (int)(cx - radius - 1), x1 = (int)(cx + radius + 1);
+    int y0 = (int)(cy - radius - 1), y1 = (int)(cy + radius + 1);
+    int32_t cx16 = (int32_t)(cx * 16), r2 = (int32_t)(radius * radius * 256);
+    int32_t to_idx = (int32_t)((float)SQRT_LUT_N * 65536 / r2);
+    int32_t str = QF(strength);
+    for (int y = y0; y <= y1; y++) {
+        int32_t dy = (int32_t)((y + 0.5f - cy) * 1.1f * 16);
+        int32_t dy2 = dy * dy;
+        if (dy2 >= r2) continue;
+        for (int x = x0; x <= x1; x++) {
+            int32_t dx = x * 16 + 8 - cx16;
+            int32_t d2 = dx * dx + dy2;
+            if (d2 >= r2) continue;
+            int32_t i = ((ONE - s_sqrt[(d2 * to_idx) >> 16]) * str) >> Q;
+            int32_t b = bayer_q(x, y);
+            if (i > QF(0.55f) + ((b * QF(0.35f)) >> Q)) px(x, y, C_AURA2);
+            else if (i > (b * QF(0.9f)) >> Q) px(x, y, C_AURA1);
+        }
+    }
+}
+
+static void draw_rings(float cx, float cy, float t, float level, float speed)
+{
+    for (int k = 0; k < 2; k++) {
+        float ph = fracf(t * speed + k * 0.5f);
+        float r = 20 + ph * 11;
+        float fade = (1 - ph) * (0.35f + level);
+        int n = (int)(r * 2.2f);
+        for (int i = 0; i < n; i++) {
+            float a = i * TAU / n;
+            int x = iround(cx + cosf(a) * r), y = iround(cy + sinf(a) * r * 0.92f);
+            if ((get_px(x, y) == C_BG || get_px(x, y) == C_AURA1) && bayer(x, y) < fade)
+                px(x, y, fade > 0.6f ? C_ACC : C_AURA2);
+        }
+    }
+}
+
+static void draw_shadow(float cx, float y, float half_w)
+{
+    for (int row = 0; row < 3; row++) {
+        float hw = half_w * (row == 1 ? 1.0f : 0.72f);
+        for (int x = iround(cx - hw); x <= iround(cx + hw); x++) {
+            if (bayer(x, (int)y + row) > fabsf(x + 0.5f - cx) / hw * 0.8f)
+                px(x, (int)y + row, C_SHADOW);
+        }
+    }
+}
+
+static inline int32_t hash16(int x, int y)
+{
+    uint32_t h = (uint32_t)x * 374761393u + (uint32_t)y * 668265263u;
+    h = (h ^ (h >> 13)) * 1274126177u;
+    return (int32_t)((h ^ (h >> 16)) & 0xffff);
+}
+
+typedef struct {
+    float cx, cy, a, b, fx, fy, fa, fb, t, perk, tail_speed, wing_flap;
+} avatar_t;
+
+typedef struct { int32_t v, inv_a; const int16_t *lut; bool body; int32_t v_pow; } row_t;
+
+static inline void row_setup(const avatar_t *j, float y, row_t *r)
+{
+    float v = (y - j->cy) / j->b;
+    float hw = expf(-(v + 0.22f) * (v + 0.22f) * 24.0f) * DNA_HEAD_W;
+    float np = expf(-(v - 0.08f) * (v - 0.08f) * 18.0f) * DNA_NECK_P;
+    float bb = v > 0.10f ? sinf(clampf((v - 0.10f) * 1.85f, 0, 1.57f)) * DNA_BELLY_B : 0.0f;
+    float a = j->a * (0.98f + hw - np + bb);
+    r->v = QF(v);
+    r->inv_a = QF(1.0f / a);
+    r->lut = v < 0 ? s_pow_dome : s_pow_base;
+    r->body = abs(r->v) <= POW_LUT_MAX_Q;
+    r->v_pow = r->body ? pow_q(r->lut, abs(r->v)) : 0;
+}
+
+static inline int32_t body_field(const row_t *r, int32_t dx, int32_t *ux)
+{
+    int32_t u = (dx * r->inv_a) >> Q;
+    *ux = u;
+    if (!r->body || abs(u) > POW_LUT_MAX_Q) return 2 * ONE;
+    return pow_q(r->lut, abs(u)) + r->v_pow;
+}
+
+static uint8_t shade_skin(int32_t nx, int32_t ny, int x, int y, int ox, int oy, bool is_cream)
+{
+    int32_t r2 = (nx * nx + ny * ny) >> Q;
+    int32_t nz = r2 >= ONE ? 0 : sqrt_q(ONE - r2);
+    int32_t l = (-QF(0.38f) * nx - QF(0.52f) * ny + QF(0.78f) * nz) >> Q;
+    int32_t b = bayer_q(x, y);
+    int rx = x - ox, ry = y - oy;
+
+    if (is_cream) {
+#if DNA_BELLY == 3
+        if (((ry + 20) % 3) == 0 && b < QF(0.70f)) return C_SKIND;
+#elif DNA_BELLY == 4
+        if ((((ry + (abs(rx) & 1)) % 3) == 0) && ((abs(rx) % 3) != 0) && b < QF(0.65f)) return C_BM;
+#endif
+        int32_t lv = l + (((b - ONE / 2) * QF(0.22f)) >> Q);
+        return lv > QF(0.68f) ? C_SKINL : lv > QF(0.25f) ? C_SKIN : C_SKIND;
+    }
+#if DNA_BELLY == 5
+    if (ny < -QF(0.15f) && ((hash16(rx, ry) & 0x3f) == 0)) return C_CYAN;
+#endif
+    int32_t streak = (hash16(rx, (ry + (rx & 1) * 2) / 3) >> 4) - ONE / 2;
+    int32_t lv = l + (((b - ONE / 2) * QF(0.22f)) >> Q) + ((streak * QF(0.18f)) >> Q);
+    if (r2 > QF(0.80f) && ((nx * QF(0.6f) + ny * QF(0.8f)) >> Q) > QF(0.58f) && b < QF(0.48f)) return C_RIM;
+#if DNA_BELLY == 0
+    if (r2 < QF(0.26f) && ny > -QF(0.2f)) return (r2 < QF(0.12f) && b < QF(0.65f)) ? C_SKINL : C_SKIN;
+#endif
+    return lv > QF(0.86f) ? C_BH : lv > QF(0.52f) ? C_BL : lv > QF(0.20f) ? C_BM : C_BD;
+}
+
+typedef struct { float x, y, angle; } limb_t;
+typedef struct { int32_t x, y, c, s, inv_rx, inv_ry, r; } limb_q_t;
+
+static void limb_setup(const limb_t *l, float rx, float ry, limb_q_t *q)
+{
+    q->x = QF(l->x); q->y = QF(l->y);
+    q->c = QF(cosf(l->angle)); q->s = QF(sinf(l->angle));
+    q->inv_rx = QF(1.0f / rx); q->inv_ry = QF(1.0f / ry);
+    q->r = QF(rx > ry ? rx : ry);
+}
+
+static inline bool in_limb(const limb_q_t *l, int32_t x, int32_t y, int32_t *lx, int32_t *ly)
+{
+    int32_t dx = x - l->x, dy = y - l->y;
+    if (abs(dx) > l->r || abs(dy) > l->r) return false;
+    int32_t u = ((((dx * l->c) >> Q) + ((dy * l->s) >> Q)) * l->inv_rx) >> Q;
+    int32_t v = ((((dy * l->c) >> Q) - ((dx * l->s) >> Q)) * l->inv_ry) >> Q;
+    *lx = u; *ly = v;
+    return u * u + v * v <= ONE * ONE;
+}
+
+enum { M_NONE, M_TAIL, M_WING, M_GILL, M_BODY, M_FACE, M_EAR, M_ARM, M_FOOT };
+
+static bool check_crown(const avatar_t *j, float px_x, float px_y, uint8_t *col)
+{
+#if DNA_CROWN == 2
+    float top_y = j->cy - j->b * 0.80f;
+    float moon_y = top_y - 6.2f + sinf(j->t * 2.6f) * 0.8f;
+    float mdx = px_x - j->cx, mdy = px_y - moon_y;
+    if (mdx * mdx + mdy * mdy <= 8.5f && (mdx - 1.3f) * (mdx - 1.3f) + (mdy + 1.1f) * (mdy + 1.1f) > 5.2f) {
+        *col = (mdy < 0 && mdx < 0) ? C_WHITE : C_CYAN;
+        return true;
+    }
+#elif DNA_CROWN == 3
+    float dy = (j->cy - j->b * 0.80f) - px_y;
+    if (dy >= -1.0f && dy <= 8.0f) {
+        float lt = clampf((dy + 1.0f) / 9.0f, 0.0f, 1.0f);
+        if (fabsf(px_x - j->cx) <= 2.6f * (1.0f - lt * 0.85f)) {
+            *col = (lt > 0.55f || px_x < j->cx) ? C_CYAN : C_CYAND;
+            return true;
+        }
+    }
+#elif DNA_CROWN == 4
+    float halo_y = (j->cy - j->b * 0.80f) - 5.5f + sinf(j->t * 2.8f) * 0.7f;
+    float dx = (px_x - j->cx) / 6.5f, dy = (px_y - halo_y) / 2.2f;
+    float d = dx * dx + dy * dy;
+    if (d >= 0.55f && d <= 1.35f) { *col = C_CYAN; return true; }
+#endif
+    (void)j; (void)px_x; (void)px_y; (void)col;
+    return false;
+}
+
+static bool check_ears(const avatar_t *j, float px_x, float px_y, uint8_t *col, int x, int y)
+{
+    float top_y = j->cy - j->b * 0.75f;
+    float dy = top_y - px_y;
+    float side = px_x < j->cx ? -1.0f : 1.0f;
+    (void)dy; (void)side; (void)x; (void)y;
+#if DNA_EARS == 1
+    if (dy < -3.0f || dy > 14.5f) return false;
+    float h = 13.0f;
+    float lt0 = clampf((dy + 2.0f) / h, 0.0f, 1.0f);
+    float droop_y = j->perk < 0 ? (-j->perk * 3.0f * lt0 * lt0) : 0.0f;
+    if (dy - droop_y > h - 1.5f) return false;
+    float eff_lt = clampf((dy + 2.0f - droop_y) / h, 0.0f, 1.0f);
+    float ear_cx = j->cx + side * (7.0f + (2.8f - j->perk * 1.4f) * eff_lt + eff_lt * 2.2f);
+    float half_w = 4.6f * (1.0f - eff_lt * 0.84f);
+    float d = fabsf(px_x - ear_cx);
+    if (d <= half_w) {
+        if (eff_lt > 0.74f) *col = eff_lt > 0.86f ? C_CYAN : C_OUT;
+        else if (d / (half_w + 0.01f) < 0.52f && eff_lt > 0.12f && eff_lt < 0.70f) *col = C_BLUSH;
+        else *col = (side * (px_x - ear_cx) < 0) ? C_BL : C_BM;
+        return true;
+    }
+#elif DNA_EARS == 2
+    if (dy < -2.5f || dy > 11.5f) return false;
+    float lt = clampf((dy + 1.5f) / 11.5f, 0.0f, 1.0f);
+    float horn_cx = j->cx + side * (6.2f + lt * 4.8f - sinf(lt * 2.8f) * 1.6f);
+    if (fabsf(px_x - horn_cx) <= 3.2f * (1.0f - lt * 0.80f)) {
+        *col = lt > 0.78f ? C_SKINL : ((((int)(dy + 4.0f)) & 1) == 0 ? C_SKIN : C_SKIND);
+        return true;
+    }
+#elif DNA_EARS == 3
+    float head_y = j->cy - j->b * 0.30f;
+    if (px_y < head_y - 14.0f || px_y > head_y + 7.0f || fabsf(px_x - j->cx) < j->a * 0.72f) return false;
+    static const struct { float ay_off, base_ang, len; } GILLS[3] = {
+        { -4.5f, 0.78f, 9.2f }, { -1.2f, 0.28f, 9.8f }, { 2.2f, -0.18f, 8.2f }
+    };
+    for (int g = 0; g < 3; g++) {
+        float ax = j->cx + side * (j->a * 0.88f - (g == 0 ? 1.5f : 0.0f));
+        float ay = head_y + GILLS[g].ay_off;
+        float ang = GILLS[g].base_ang + j->perk * 0.25f + sinf(j->t * 3.0f + g * 1.1f + (side > 0 ? 0.5f : 0.0f)) * 0.14f;
+        float rx = (px_x - ax) * side, ry = ay - px_y;
+        float u = rx * cosf(ang) + ry * sinf(ang);
+        float v = -rx * sinf(ang) + ry * cosf(ang);
+        if (u < -1.0f || u > GILLS[g].len) continue;
+        float lt = clampf(u / GILLS[g].len, 0.0f, 1.0f);
+        if (fabsf(v) <= 2.0f * (1.0f - lt * 0.55f) + 0.65f * fabsf(sinf(u * 2.4f))) {
+            *col = lt > 0.76f ? C_CYAN : (fabsf(v) > 1.0f ? C_BLUSH : C_BLUSHD);
+            return true;
+        }
+    }
+#elif DNA_EARS == 4
+    if (dy < -3.0f || dy > 11.0f) return false;
+    float eff_dy = dy + (j->perk < 0 ? -j->perk * 2.8f : 0.0f);
+    if (eff_dy >= -2.0f && eff_dy <= 9.5f) {
+        float lt = clampf((eff_dy + 1.5f) / 9.5f, 0.0f, 1.0f);
+        float tuft_cx = j->cx + side * (6.5f + lt * (5.2f - j->perk * 1.5f) + lt * lt * 1.6f);
+        if (fabsf(px_x - tuft_cx) <= 3.6f * (1.0f - lt * 0.80f)) {
+            *col = lt > 0.72f ? C_BROW : (lt > 0.38f ? C_BH : C_BL);
+            return true;
+        }
+    }
+#elif DNA_EARS == 5
+    if (dy < -2.0f || dy > 13.5f) return false;
+    float t_norm = clampf(dy / 12.5f, 0.0f, 1.0f);
+    float dx = px_x - j->cx - sinf(j->t * 3.2f + t_norm * 2.0f) * 0.8f * t_norm;
+    static const struct { float ox, curve, w0, h; } LOCKS[3] = {
+        { -1.2f, -3.8f, 4.8f, 12.0f }, { -5.0f, -2.8f, 3.4f, 8.5f }, { 3.5f, -1.8f, 3.2f, 9.0f }
+    };
+    for (int i = 0; i < 3; i++) {
+        if (dy > LOCKS[i].h) continue;
+        float lt = clampf(dy / LOCKS[i].h, 0.0f, 1.0f);
+        float cx_lock = LOCKS[i].ox + LOCKS[i].curve * lt * lt + sinf(lt * 4.5f + i) * 0.7f;
+        if (fabsf(dx - cx_lock) <= LOCKS[i].w0 * (1.0f - lt * 0.82f)) {
+            *col = lt > 0.65f ? C_CYAN : (lt > 0.35f ? C_BH : C_BL);
+            return true;
+        }
+    }
+#elif DNA_EARS == 6
+    float edy = px_y - (j->cy - j->b * 0.55f);
+    if (edy >= 0.0f && edy <= 15.0f) {
+        float lt = edy / 15.0f;
+        float ecx = j->cx + side * (j->a * 0.88f + sinf(lt * 2.5f) * 2.2f + j->perk * 1.2f * lt);
+        float hw = 3.2f * sinf(lt * 2.6f + 0.3f);
+        if (fabsf(px_x - ecx) <= hw) {
+            *col = lt > 0.78f ? C_CYAN : (fabsf(px_x - ecx) < hw * 0.45f ? C_BLUSH : C_BM);
+            return true;
+        }
+    }
+#elif DNA_EARS == 7
+    if (dy >= -1.0f && dy <= 11.5f) {
+        float lt = clampf(dy / 10.0f, 0.0f, 1.0f);
+        float acx = j->cx + side * (5.5f + lt * 3.8f) + sinf(j->t * 4.0f + side) * 1.2f * lt;
+        float d2 = (px_x - acx) * (px_x - acx) + (dy - 9.5f) * (dy - 9.5f);
+        if (d2 <= 4.2f) { *col = d2 <= 1.5f ? C_WHITE : C_CYAN; return true; }
+        if (dy < 9.5f && fabsf(px_x - acx) <= 1.1f) { *col = C_BL; return true; }
+    }
+#endif
+    return false;
+}
+
+static bool check_wings(const avatar_t *j, float px_x, float px_y, uint8_t *col, int x, int y)
+{
+#if DNA_WINGS > 0
+    float sh_y = j->cy + 1.0f;
+    float dx_abs = fabsf(px_x - j->cx);
+    float start_x = j->a * 0.78f;
+    if (dx_abs < start_x - 1.0f || dx_abs > start_x + 12.5f) return false;
+    float wt = clampf((dx_abs - start_x) / 11.0f, 0.0f, 1.0f);
+    float flap_dy = j->wing_flap * 4.5f * wt;
+#if DNA_WINGS == 1
+    float top_arch = sh_y - 4.0f - sinf(wt * 2.5f) * 4.5f - flap_dy;
+    float bot_arch = sh_y + 5.5f - wt * 2.0f - fabsf(sinf(wt * 3.14159f * 2.0f)) * 2.2f - flap_dy * 0.7f;
+    if (px_y >= top_arch && px_y <= bot_arch) {
+        *col = px_y <= top_arch + 1.8f ? C_BL : (bayer(x, y) < 0.45f ? C_BLUSHD : C_TONGUE);
+        return true;
+    }
+#elif DNA_WINGS == 2
+    float top_arch = sh_y - 6.0f - sinf(wt * 2.8f) * 5.0f - flap_dy;
+    float bot_arch = sh_y + 6.0f - cosf(wt * 1.5f) * 3.0f - flap_dy * 0.5f;
+    if (px_y >= top_arch && px_y <= bot_arch) {
+        *col = (((x + y) & 1) == 0) ? C_CYAN : C_SKINL;
+        return true;
+    }
+#endif
+#endif
+    (void)j; (void)px_x; (void)px_y; (void)col; (void)x; (void)y;
+    return false;
+}
+
+static bool check_tail(const avatar_t *j, float px_x, float px_y, uint8_t *col, int x, int y)
+{
+#if DNA_TAIL > 0
+    float base_x = j->cx + j->a * 0.52f, base_y = j->cy + j->b * 0.58f;
+    float dx = px_x - base_x, dy = base_y - px_y;
+    if (dx < -2.0f || dx > 16.5f || dy < -4.5f || dy > 18.0f) return false;
+    float wag = sinf(j->t * j->tail_speed) * 2.2f;
+    float t_est = clampf((dx * 0.66f + dy * 0.74f) / 16.0f, 0.0f, 1.0f);
+    float cx_t = t_est * 11.5f + sinf(t_est * 3.1f) * 2.0f;
+    float cy_t = t_est * t_est * 12.0f + wag * t_est;
+    float dist2 = (dx - cx_t) * (dx - cx_t) + (dy - cy_t) * (dy - cy_t);
+#if DNA_TAIL == 1
+    float r = 5.2f * sinf(clampf(t_est * 2.6f + 0.25f, 0.0f, 3.05f));
+    if (dist2 <= r * r) {
+        float b = bayer(x, y);
+        *col = (t_est > 0.62f + (b - 0.5f) * 0.14f) ? ((t_est > 0.84f && b < 0.5f) ? C_CYAN : C_SKINL) : (dy > cy_t + 1.0f ? C_BL : C_BM);
+        return true;
+    }
+#elif DNA_TAIL == 2
+    float r = t_est < 0.75f ? 3.8f * (1.0f - t_est * 0.65f) : 3.6f * sinf((1.0f - t_est) * 2.0f * 3.14159f + 0.2f);
+    if (dist2 <= r * r) {
+        *col = t_est > 0.72f ? (dist2 < r * r * 0.4f ? C_WHITE : C_CYAN) : (dy > cy_t ? C_BL : C_BM);
+        return true;
+    }
+#elif DNA_TAIL == 3
+    float fin_r = 4.8f * sinf(t_est * 3.14159f * 0.88f + 0.2f);
+    float core_r = 2.0f * (1.0f - t_est * 0.75f);
+    if (dist2 <= fin_r * fin_r) {
+        *col = dist2 <= core_r * core_r ? C_BM : ((((x + y) & 1) == 0) ? C_CYAN : C_BL);
+        return true;
+    }
+#endif
+#endif
+    (void)j; (void)px_x; (void)px_y; (void)col; (void)x; (void)y;
+    return false;
+}
+
+static void draw_avatar(const avatar_t *j, const limb_t arms[2], const limb_t feet[2])
+{
+    memset(s_mask, 0, sizeof(s_mask));
+    limb_q_t arm_q[2], foot_q[2];
+    for (int i = 0; i < 2; i++) {
+        limb_setup(&arms[i], 2.8f, 5.2f, &arm_q[i]);
+        limb_setup(&feet[i], 4.2f, 2.6f, &foot_q[i]);
+    }
+    int ox = iround(j->cx), oy = iround(j->cy);
+    int32_t cx = QF(j->cx);
+
+    for (int y = 0; y < H; y++) {
+        row_t row;
+        row_setup(j, y + 0.5f, &row);
+        int32_t fy = y * ONE + ONE / 2;
+        for (int x = 0; x < W; x++) {
+            int32_t fx = x * ONE + ONE / 2, lx, ly;
+            bool arm = false;
+            for (int a = 0; a < 2 && !arm; a++) {
+                if (in_limb(&arm_q[a], fx, fy, &lx, &ly)) {
+                    s_mask[y * W + x] = M_ARM;
+                    int32_t nx = ((lx * QF(0.85f)) >> Q) + (a ? QF(0.20f) : -QF(0.20f));
+                    px(x, y, shade_skin(nx, (ly * QF(0.8f)) >> Q, x, y, ox, oy, false));
+                    arm = true;
+                }
+            }
+            if (arm) continue;
+
+            uint8_t c_col = C_CYAN;
+            if (check_crown(j, x + 0.5f, y + 0.5f, &c_col)) {
+                s_mask[y * W + x] = M_EAR; px(x, y, c_col); continue;
+            }
+#if DNA_EARS != 3
+            if (check_ears(j, x + 0.5f, y + 0.5f, &c_col, x, y)) {
+                s_mask[y * W + x] = M_EAR; px(x, y, c_col); continue;
+            }
+#endif
+            int32_t ux, uy = row.v;
+            int32_t v = body_field(&row, fx - cx, &ux);
+            int32_t tuft = ((hash16(x - ox, y - oy) - 32768) * QF(0.16f)) >> 16;
+            if (v <= ONE + tuft) {
+                float fux = (float)ux / ONE, fuy = (float)uy / ONE;
+                bool is_cream = false;
+#if DNA_BELLY == 1
+                float fu = (x + 0.5f - j->fx) / j->fa, fv = (y + 0.5f - j->fy) / j->fb;
+                if (fu * fu * fu * fu + fv * fv * fv * fv <= 1.0f) {
+                    s_mask[y * W + x] = M_FACE;
+                    px(x, y, fv < -0.55f ? C_SKIND : C_SKIN);
+                    continue;
+                }
+#elif DNA_BELLY == 2
+                bool cheek = (fuy > -0.28f && fuy < 0.08f && fabsf(fux) < 0.78f && fuy > -0.05f - 0.22f * cosf(fux * 3.5f));
+                bool bib = (fuy >= 0.08f && fuy < 0.85f && fabsf(fux) < 0.52f * (1.0f - (fuy - 0.08f) * 0.65f));
+                is_cream = cheek || bib;
+#elif DNA_BELLY == 3 || DNA_BELLY == 5
+                is_cream = (fuy >= 0.08f && fuy < 0.86f && fabsf(fux) < 0.55f * (1.0f - (fuy - 0.45f) * (fuy - 0.45f) * 0.9f));
+#elif DNA_BELLY == 4
+                float dl = (fux + 0.30f) * (fux + 0.30f) * 2.1f + (fuy + 0.22f) * (fuy + 0.22f) * 3.8f;
+                float dr = (fux - 0.30f) * (fux - 0.30f) * 2.1f + (fuy + 0.22f) * (fuy + 0.22f) * 3.8f;
+                bool breast = (fuy >= 0.08f && fuy < 0.86f && fabsf(fux) < 0.58f * (1.0f - (fuy - 0.42f) * (fuy - 0.42f) * 1.1f));
+                is_cream = (dl <= 0.42f || dr <= 0.42f || breast);
+#endif
+                (void)fux; (void)fuy;
+                s_mask[y * W + x] = M_BODY;
+                px(x, y, shade_skin((ux * QF(0.95f)) >> Q, (uy * QF(0.95f)) >> Q, x, y, ox, oy, is_cream));
+                continue;
+            }
+#if DNA_EARS == 3
+            if (check_ears(j, x + 0.5f, y + 0.5f, &c_col, x, y)) {
+                s_mask[y * W + x] = M_GILL; px(x, y, c_col); continue;
+            }
+#endif
+            bool foot = false;
+            for (int f = 0; f < 2; f++) {
+                if (in_limb(&foot_q[f], fx, fy, &lx, &ly)) {
+                    s_mask[y * W + x] = M_FOOT;
+                    px(x, y, ly < -QF(0.15f) ? C_BL : C_BD);
+                    foot = true; break;
+                }
+            }
+            if (foot) continue;
+
+            if (check_wings(j, x + 0.5f, y + 0.5f, &c_col, x, y)) {
+                s_mask[y * W + x] = M_WING; px(x, y, c_col); continue;
+            }
+            if (check_tail(j, x + 0.5f, y + 0.5f, &c_col, x, y)) {
+                s_mask[y * W + x] = M_TAIL; px(x, y, c_col);
+            }
+        }
+    }
+
+    static const int8_t N4[4][2] = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+            uint8_t m = s_mask[y * W + x];
+            if (m == M_NONE || m == M_FACE) continue;
+            for (int k = 0; k < 4; k++) {
+                int xx = x + N4[k][0], yy = y + N4[k][1];
+                uint8_t n = ((unsigned)xx < W && (unsigned)yy < H) ? s_mask[yy * W + xx] : M_NONE;
+                if (n == M_NONE || (m == M_ARM && (n == M_BODY || n == M_FACE)) || (m == M_BODY && n == M_FOOT)) {
+                    px(x, y, m == M_GILL ? C_OUT2 : C_OUT);
+                    break;
+                }
+            }
+        }
+    }
+#if DNA_CROWN == 1
+    int gx = iround(j->fx), gy = iround(j->cy - j->b - 2.0f + sinf(j->t * 3.0f) * 0.6f);
+    px(gx, gy - 1, C_CYAN);
+    px(gx - 1, gy, C_CYAN); px(gx, gy, C_WHITE); px(gx + 1, gy, C_CYAN);
+    px(gx, gy + 1, C_CYAN);
+#endif
+}
+
+typedef enum { EYES_NORMAL, EYES_WIDE, EYES_HAPPY, EYES_X, EYES_HEART, EYES_ANGRY } eye_style_t;
+
+static void draw_eye(float ex, float ey, float openness, eye_style_t style, float gx, float gy)
+{
+    int cx = iround(ex), cy = iround(ey);
+    if (style == EYES_HAPPY) {
+        static const char *const HAPPY[] = { ".####.", "##..##", "#....#" };
+        stamp(HAPPY, 3, cx - 3, cy - 1, C_IRIS, C_IRIS); return;
+    }
+    if (style == EYES_X) {
+        static const char *const XS[] = { "#...#", ".#.#.", "..#..", ".#.#.", "#...#" };
+        stamp(XS, 5, cx - 2, cy - 2, C_IRIS, C_IRIS); return;
+    }
+    if (style == EYES_HEART) {
+        static const char *const HEART_EYE[] = { ".##.##.", "#######", "#o#####", ".#####.", "..###..", "...#..." };
+        stamp(HEART_EYE, 6, cx - 3, cy - 3, C_HEART, C_WHITE); return;
+    }
+    if (openness < 0.25f) {
+        static const char *const SHUT[] = { ".####.", "#....#" };
+        stamp(SHUT, 2, cx - 3, cy + 1, C_IRIS, C_IRIS); return;
+    }
+#if DNA_EYES == 4
+    static const char *const BEAD[] = { ".##.", "#o##", "####", ".##." };
+    stamp(BEAD, 4, iround(ex + gx * 0.8f) - 2, iround(ey + gy * 0.7f) - 2, C_IRIS, C_SHINE);
+    return;
+#else
+    int rx = (DNA_EYES == 3) ? 3 : 4;
+    int ry = (style == EYES_WIDE ? rx + 1 : rx);
+    int eff_ry = iround(ry * clampf(openness, 0.3f, 1.0f));
+    if (eff_ry < 1) eff_ry = 1;
+    float px_off = gx * 1.0f, py_off = gy * 0.8f;
+
+    for (int dy = -eff_ry; dy <= eff_ry; dy++) {
+        if (style == EYES_ANGRY && dy < -1) continue;
+        for (int dx = -rx; dx <= rx; dx++) {
+            float nd = (dx * dx) / ((float)rx * rx + 0.5f) + (dy * dy) / ((float)eff_ry * eff_ry + 0.5f);
+            if (nd > 1.0f) continue;
+            float id_x = dx - px_off, id_y = dy - py_off;
+            uint8_t col = C_WHITE;
+#if DNA_EYES == 1
+            float pupil_d = (id_x * id_x) * 1.8f + (id_y * id_y) * 0.55f;
+            float iris_d = id_x * id_x + id_y * id_y;
+            if (pupil_d <= 3.2f) col = C_IRIS;
+            else if (iris_d <= 9.2f) col = (dy > 0 && bayer(cx + dx, cy + dy) < 0.45f) ? C_SKINL : C_IRIS_R;
+#elif DNA_EYES == 2
+            float id2 = id_x * id_x + id_y * id_y;
+            col = nd > 0.82f ? C_OUT : (id2 <= 4.2f ? C_IRIS : C_IRIS_R);
+#elif DNA_EYES == 3
+            (void)id_x; (void)id_y;
+            col = (dy > 0 && nd > 0.52f && bayer(cx + dx, cy + dy) < 0.65f) ? C_IRIS_R : C_IRIS;
+#else
+            float id2 = id_x * id_x + id_y * id_y;
+            if (id2 <= 3.6f) col = C_IRIS;
+            else if (id2 <= 8.5f) col = (dy > 0 && bayer(cx + dx, cy + dy) < 0.45f) ? C_CYAN : C_IRIS_R;
+#endif
+            px(cx + dx, cy + dy, col);
+        }
+    }
+    int sx = cx + iround(px_off * 0.5f) - 1, sy = cy + iround(py_off * 0.5f) - 1;
+    px(sx, sy, C_SHINE); px(sx - 1, sy, C_SHINE); px(sx, sy - 1, C_SHINE);
+    if (eff_ry >= 3) px(sx + 2, sy + 2, C_CYAN);
+#endif
+}
+
+static void draw_blush(int x, int y, float strength)
+{
+    static const char *const CHEEK[] = { ".##.", "####", ".##." };
+    for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < 4; i++) {
+            if (CHEEK[j][i] != '#') continue;
+            float b = bayer(x + i, y + j);
+            if (b < strength) px(x - 2 + i, y + j, (j == 1 && b < strength * 0.5f) ? C_BLUSHD : C_BLUSH);
+        }
+    }
+}
+
+typedef enum { MOUTH_SMILE, MOUTH_O, MOUTH_HMM, MOUTH_TALK, MOUTH_GRIN, MOUTH_FLAT, MOUTH_POUT } mouth_t;
+
+static void draw_mouth(int x, int y, mouth_t m, float open)
+{
+#if DNA_MOUTH == 3
+    px(x, y - 2, C_CYAN);
+    px(x - 1, y - 1, C_CYAND); px(x, y - 1, C_CYAN); px(x + 1, y - 1, C_CYAND);
+    px(x, y, C_CYAND);
+    if (m == MOUTH_O || m == MOUTH_TALK || m == MOUTH_GRIN) {
+        px(x - 1, y + 1, C_MOUTH); px(x, y + 1, C_TONGUE); px(x + 1, y + 1, C_MOUTH);
+    }
+    (void)open;
+    return;
+#else
+#if DNA_MOUTH == 1
+    px(x - 1, y - 2, C_MOUTH); px(x, y - 2, C_MOUTH); px(x + 1, y - 2, C_MOUTH); px(x, y - 1, C_MOUTH);
+#elif DNA_MOUTH == 2
+    px(x - 2, y - 2, C_MOUTH); px(x + 2, y - 2, C_MOUTH);
+#endif
+    switch (m) {
+    case MOUTH_SMILE: {
+#if DNA_MOUTH == 1
+        static const char *const S[] = { "#.#.#", ".#.#." };
+        stamp(S, 2, x - 2, y, C_MOUTH, C_MOUTH);
+#elif DNA_MOUTH == 2
+        static const char *const S[] = { "#....#", ".#o##." };
+        stamp(S, 2, x - 3, y, C_MOUTH, C_WHITE);
+#else
+        static const char *const S[] = { "#....#", "######", ".#oo#.", "..##.." };
+        stamp(S, 4, x - 3, y, C_MOUTH, C_TONGUE);
+#endif
+        break;
+    }
+    case MOUTH_O: {
+        static const char *const S[] = { ".##.", "#oo#", ".##." };
+        stamp(S, 3, x - 2, y, C_MOUTH, C_TONGUE); break;
+    }
+    case MOUTH_HMM: {
+        static const char *const S[] = { "..#", "##." };
+        stamp(S, 2, x - 1, y + 1, C_MOUTH, C_MOUTH); break;
+    }
+    case MOUTH_TALK: {
+        int h = 2 + iround(clampf(open, 0, 1) * 3.0f);
+        int w = h > 2 ? 6 : 4;
+        for (int j = 0; j < h; j++) {
+            int inset = (j == h - 1) ? 1 : 0;
+            for (int i = inset; i < w - inset; i++) {
+                bool tongue = h >= 3 && j >= h - 2 && i > inset && i < w - inset - 1;
+                px(x - w / 2 + i, y + j, tongue ? C_TONGUE : C_MOUTH);
+            }
+        }
+        break;
+    }
+    case MOUTH_GRIN: {
+        static const char *const S[] = { "#######", ".##o##.", "..ooo..", "...#..." };
+        stamp(S, 4, x - 3, y, C_MOUTH, C_TONGUE); break;
+    }
+    case MOUTH_FLAT: {
+        static const char *const S[] = { "####" };
+        stamp(S, 1, x - 2, y + 1, C_MOUTH, C_MOUTH); break;
+    }
+    case MOUTH_POUT: {
+        static const char *const S[] = { ".####.", "#....#" };
+        stamp(S, 2, x - 3, y + 1, C_MOUTH, C_MOUTH); break;
+    }
+    }
+#endif
+}
+
+static void draw_sparkles(const muse_pose_t *p, float cx, float cy, bool front, float speed, int count)
+{
+    for (int i = 0; i < count; i++) {
+        float a = p->t * speed + i * TAU / count, s = sinf(a);
+        if ((s > 0) != front) continue;
+        float rr = 25.0f + 2.0f * sinf(i * 1.9f + p->t * 0.7f);
+        int x = iround(cx + cosf(a) * rr), y = iround(cy - 3 + s * rr * 0.42f);
+        float tw = 0.5f + 0.5f * sinf(p->t * 5.0f + i * 1.7f);
+        uint8_t arm = front ? C_ACC : C_AURA2, core = front ? C_WHITE : C_SPK;
+        if (tw > 0.8f) {
+            px(x, y, core);
+            for (int k = 1; k <= 2; k++) {
+                uint8_t c = k == 1 ? (front ? C_SPK : arm) : arm;
+                px(x + k, y, c); px(x - k, y, c); px(x, y + k, c); px(x, y - k, c);
+            }
+        } else if (tw > 0.45f) {
+            px(x, y, front ? C_SPK : arm);
+            px(x + 1, y, arm); px(x - 1, y, arm); px(x, y + 1, arm); px(x, y - 1, arm);
+        } else if (tw > 0.15f) px(x, y, arm);
+    }
+}
+
+static void draw_waves(float cx, float cy, float body_rx, float level, float t)
+{
+    int n = 1 + (int)(clampf(level, 0, 1) * 3.2f);
+    if (n > 3) n = 3;
+    for (int k = 0; k < n; k++) {
+        float r = body_rx + 5.0f + k * 3.0f, flick = 0.5f + 0.5f * sinf(t * 12.0f - k * 1.4f);
+        int span = 2 + k;
+        for (int side = -1; side <= 1; side += 2) {
+            for (int j = -span; j <= span; j++) {
+                int x = iround(cx + side * (r - (float)(j * j) / (2.0f * r) * 3.0f)), y = iround(cy - 2 + j);
+                if (k == 0 || bayer(x, y) < 0.35f + flick * 0.65f)
+                    px(x, y, k == 0 ? C_ACC : (k == 1 ? C_G1 : C_G2));
+            }
+        }
+    }
+}
+
+static void draw_thought_dots(float x, float y, float t)
+{
+    int active = (int)(fracf(t * 1.6f) * 3.0f);
+    for (int i = 0; i < 3; i++) {
+        int bx = iround(x + i * 4), by = iround(y - i * 3) - (i == active ? 1 : 0);
+        uint8_t c = i == active ? C_G0 : C_ACC;
+        px(bx, by, c); px(bx + 1, by, c); px(bx, by + 1, c); px(bx + 1, by + 1, i == active ? C_G1 : C_G2);
+    }
+}
+
+static void draw_hearts(float cx, float top, float t, float amount)
+{
+    static const char *const HEART[] = { ".#.#.", "#o###", "#####", ".###.", "..#.." };
+    for (int i = 0; i < 2; i++) {
+        float ph = fracf(t * 0.9f + i * 0.5f);
+        if (ph > amount) continue;
+        stamp(HEART, 5, iround(cx + (i ? 13 : -18) + sinf(ph * TAU + i) * 2), iround(top - ph * 10), C_HEART, C_WHITE);
+    }
+}
+
+static void draw_zzz(float cx, float top, float t)
+{
+    static const char *const Z_BMP[] = { "####", "..#.", ".#..", "####" };
+    for (int i = 0; i < 2; i++) {
+        float ph = fracf(t * 0.45f + i * 0.5f);
+        stamp(Z_BMP, 4, iround(cx + 12 + ph * 6 + sinf(ph * TAU) * 1.5f), iround(top + 4 - ph * 10), i == 0 ? C_G0 : C_ACC, C_WHITE);
+    }
+}
+
+#define MAP_MAX 512
+static uint8_t s_map[MAP_MAX];
+static int s_size;
+
+void muse_pixel_set_size(int px_size)
+{
+    s_size = px_size < MAP_MAX ? px_size : MAP_MAX;
+    bool grid = s_size >= 3 * W;
+    for (int i = 0; i < s_size; i++) {
+        int cell = i * W / s_size;
+        bool edge = grid && (i + 1) * W / s_size != cell;
+        s_map[i] = (uint8_t)(cell | (edge ? 0x80 : 0));
+    }
+}
+
+void muse_pixel_scale(uint16_t *dst, int stride_px, int x0, int x1, int y0, int y1)
+{
+    int n = x1 - x0 + 1;
+    const uint8_t *xmap = &s_map[x0];
+    const uint16_t *prev = NULL;
+    uint8_t prev_m = 0;
+    for (int y = y0; y <= y1; y++, dst += stride_px) {
+        uint8_t m = s_map[y];
+        if (prev && m == prev_m) { memcpy(dst, prev, n * sizeof(uint16_t)); continue; }
+        const uint8_t *row = &s_fb[(m & 0x7f) * W];
+        if (m & 0x80) {
+            for (int i = 0; i < n; i++) dst[i] = s_pal_dim[row[xmap[i] & 0x7f]];
+        } else {
+            for (int i = 0; i < n; i++) {
+                uint8_t xm = xmap[i], c = row[xm & 0x7f];
+                dst[i] = xm & 0x80 ? s_pal_dim[c] : s_pal[c];
+            }
+        }
+        prev = dst; prev_m = m;
+    }
+}
+
+void muse_pixel_render(const muse_pose_t *p)
+{
+    static bool s_luts;
+    if (!s_luts) { init_luts(); s_luts = true; }
+    float dt = s_eyes.last_t > 0 ? clampf(p->t - s_eyes.last_t, 0, 0.2f) : 0.04f;
+    s_eyes.last_t = p->t;
+
+    muse_mode_t mode = p->mode;
+    float fade = mode == MUSE_MODE_OFF ? clampf(1.0f - p->mode_t / 1.3f, 0, 1) : 1.0f;
+    float happy = p->happy, level = p->level, t = p->t;
+
+    update_palette(&SCHEMES[mode], dt);
+    float blink = eyes_update(p, dt);
+    memset(s_fb, C_BG, sizeof(s_fb));
+
+    float bob = sinf(t * 1.8f) * 1.0f, breathe_rate = 2.0f, lean = 0, hop = 0;
+    float perk = 0.0f, tail_speed = 2.8f, wing_flap = sinf(t * 3.6f) * 0.35f;
+
+    switch (mode) {
+    case MUSE_MODE_LISTENING: bob = sinf(t * 3.0f) * 0.6f; perk = 0.85f; tail_speed = 3.5f; wing_flap = 0.55f + sinf(t * 5.0f) * 0.2f; break;
+    case MUSE_MODE_THINKING:  bob = sinf(t * 2.4f) * 0.8f; lean = sinf(t * 1.3f) * 1.2f; perk = -0.25f; tail_speed = 1.6f; break;
+    case MUSE_MODE_SPEAKING:  bob = sinf(t * 5.0f) * 0.6f - level * 1.5f; perk = 0.45f * sinf(t * 6.5f); tail_speed = 4.8f; wing_flap = sinf(t * 8.0f) * (0.4f + level * 0.5f); break;
+    case MUSE_MODE_ERROR:     bob = 1.0f; lean = sinf(t * 18.0f) * (p->mode_t < 0.6f ? 1.0f : 0.0f); perk = -0.9f; tail_speed = 0.8f; wing_flap = -0.8f; break;
+    case MUSE_MODE_SLEEPY:    breathe_rate = 0.9f; bob = sinf(t * 0.9f) * 1.2f + 1.5f; lean = sinf(t * 0.6f) * 1.0f; perk = -0.8f; tail_speed = 0.9f; wing_flap = -0.75f; break;
+    case MUSE_MODE_LOVE:      bob = sinf(t * 3.5f) * 0.8f; lean = sinf(t * 2.5f) * 1.8f; perk = 0.65f; tail_speed = 6.5f; wing_flap = sinf(t * 12.0f) * 0.75f; break;
+    case MUSE_MODE_ANGRY:     bob = 1.2f; lean = sinf(t * 28.0f) * 0.8f; perk = -0.65f; tail_speed = 8.0f; wing_flap = 0.9f; break;
+    case MUSE_MODE_SURPRISED: hop = p->mode_t < 0.35f ? sinf((p->mode_t / 0.35f) * 3.1416f) * 6.0f : 0.0f; bob = 0.0f; perk = 1.0f; tail_speed = 5.5f; wing_flap = 1.0f; break;
+    default: break;
+    }
+    if (happy > 0) { hop = fabsf(sinf(t * 9.0f)) * 3.0f * happy; perk = 0.8f; tail_speed = 7.5f; wing_flap = sinf(t * 14.0f) * 0.85f; }
+
+    float boot = mode == MUSE_MODE_BOOT ? clampf(p->mode_t / 1.4f, 0, 1) : 1.0f;
+    float pop = mode == MUSE_MODE_BOOT ? clampf(p->mode_t / 0.6f, 0, 1) : 1.0f;
+    float squash = 1.0f - (1.0f - pop) * 0.35f + sinf(pop * 3.1416f) * 0.06f;
+    float breathe = sinf(t * breathe_rate + 1.0f) * 0.03f;
+
+    avatar_t j;
+    j.a = DNA_BODY_RX * (1 + breathe) * (2.0f - squash) + level * 0.8f;
+    j.b = DNA_BODY_RY * (1 - breathe) * squash;
+    j.cx = (DNA_TAIL > 0 ? 30.8f : 32.0f) + lean;
+    j.cy = 55.5f - j.b + bob * 0.5f - hop;
+    j.fa = j.a * 0.76f;
+    j.fb = 7.3f * squash;
+    j.fx = j.cx + lean * 0.3f;
+    j.fy = j.cy - j.b * 0.22f + bob * 0.3f;
+    j.t = t; j.perk = perk; j.tail_speed = tail_speed; j.wing_flap = wing_flap;
+
+    draw_aura(j.cx, j.cy - 3, 29.0f + level * 4.0f + sinf(t * 1.5f), (0.75f * boot + level * 0.4f) * fade);
+    if (mode == MUSE_MODE_LISTENING || mode == MUSE_MODE_SPEAKING)
+        draw_rings(j.cx, j.fy + 2, t, level, mode == MUSE_MODE_LISTENING ? 0.9f : 0.6f);
+    draw_shadow(j.cx, 58.5f, 13.0f - hop * 0.8f);
+
+    float spk_speed = mode == MUSE_MODE_THINKING ? 2.8f : mode == MUSE_MODE_LISTENING ? 1.2f : mode == MUSE_MODE_SPEAKING ? 1.5f : 0.6f;
+    int spk_count = mode == MUSE_MODE_BOOT ? (int)(boot * 6) : (int)(6 * fade);
+    draw_sparkles(p, j.cx, j.cy, false, spk_speed, spk_count);
+
+    float base = j.cy + j.b, step = mode == MUSE_MODE_SPEAKING ? sinf(t * 5.0f) * 0.6f : 0.0f;
+    limb_t feet[2] = {
+        { j.cx - 5.8f, base + 0.5f + (happy > 0 ? hop * 0.3f : step), -0.15f },
+        { j.cx + 5.8f, base + 0.5f + (happy > 0 ? hop * 0.3f : -step), 0.15f }
+    };
+    limb_t arms[2];
+    float adx = j.a - 0.5f, ay = j.cy + 3.0f;
+    switch (mode) {
+    case MUSE_MODE_LISTENING: arms[0] = (limb_t){ j.cx - adx + 1.0f, j.fy + 5.0f, 0.55f }; arms[1] = (limb_t){ j.cx + adx - 1.0f, j.fy + 5.0f, -0.55f }; break;
+    case MUSE_MODE_THINKING:  arms[0] = (limb_t){ j.cx - adx, ay, -0.35f }; arms[1] = (limb_t){ j.cx + 7.5f, j.fy + j.fb + 3.5f, -1.1f }; break;
+    case MUSE_MODE_OFF: { float w = sinf(t * 12.0f) * 0.35f * fade; arms[0] = (limb_t){ j.cx - adx, ay, -0.3f }; arms[1] = (limb_t){ j.cx + adx + 1.0f, j.cy - 4.0f, -2.3f - w }; break; }
+    case MUSE_MODE_SPEAKING: { float w = sinf(t * 7.0f) * (0.25f + level * 0.45f); arms[0] = (limb_t){ j.cx - adx, ay - 1.0f, -0.4f - w }; arms[1] = (limb_t){ j.cx + adx, ay - 1.0f, 0.4f - w }; break; }
+    case MUSE_MODE_LOVE: { float w = sinf(t * 6.0f) * 0.15f; arms[0] = (limb_t){ j.cx - adx + 2.0f, j.fy + 6.5f, 0.75f + w }; arms[1] = (limb_t){ j.cx + adx - 2.0f, j.fy + 6.5f, -0.75f - w }; break; }
+    case MUSE_MODE_ANGRY: { float w = sinf(t * 24.0f) * 0.15f; arms[0] = (limb_t){ j.cx - adx - 1.0f, ay - 1.5f, -0.85f + w }; arms[1] = (limb_t){ j.cx + adx + 1.0f, ay - 1.5f, 0.85f - w }; break; }
+    case MUSE_MODE_SURPRISED: arms[0] = (limb_t){ j.cx - adx - 1.2f, j.cy - 3.5f, 2.2f }; arms[1] = (limb_t){ j.cx + adx + 1.2f, j.cy - 3.5f, -2.2f }; break;
+    default: {
+        float sway = sinf(t * 1.8f + 0.6f) * 0.08f;
+        if (happy > 0) {
+            float wig = sinf(t * 14.0f) * 0.25f;
+            arms[0] = (limb_t){ j.cx - adx - 1.0f, j.cy - 4.0f, 2.4f + wig };
+            arms[1] = (limb_t){ j.cx + adx + 1.0f, j.cy - 4.0f, -2.4f - wig };
+        } else {
+            arms[0] = (limb_t){ j.cx - adx, ay, -0.3f + sway };
+            arms[1] = (limb_t){ j.cx + adx, ay, 0.3f - sway };
+        }
+        break;
+    }
+    }
+    draw_avatar(&j, arms, feet);
+
+    float eye_y = j.fy - 0.5f, eye_dx = 5.4f, open = 1.0f - blink, mouth_open = 0;
+    eye_style_t style = EYES_NORMAL;
+    mouth_t mouth = MOUTH_SMILE;
+    switch (mode) {
+    case MUSE_MODE_BOOT:      open = p->mode_t < 0.9f ? 0.0f : clampf((p->mode_t - 0.9f) / 0.3f, 0, 1); break;
+    case MUSE_MODE_LISTENING: style = EYES_WIDE; mouth = MOUTH_O; break;
+    case MUSE_MODE_THINKING:  open *= 0.85f; mouth = MOUTH_HMM; break;
+    case MUSE_MODE_SPEAKING:  mouth = MOUTH_TALK; mouth_open = level * 1.3f + 0.1f * (0.5f + 0.5f * sinf(t * 22.0f)); break;
+    case MUSE_MODE_ERROR:     style = EYES_X; mouth = MOUTH_FLAT; break;
+    case MUSE_MODE_OFF:       open = clampf((1.0f - p->mode_t / 1.0f) * 1.5f, 0, 1); mouth = MOUTH_SMILE; break;
+    case MUSE_MODE_SLEEPY:    open *= 0.20f; mouth = MOUTH_O; break;
+    case MUSE_MODE_LOVE:      style = EYES_HEART; mouth = MOUTH_GRIN; break;
+    case MUSE_MODE_ANGRY:     style = EYES_ANGRY; open *= 0.85f; mouth = MOUTH_POUT; break;
+    case MUSE_MODE_SURPRISED: style = EYES_WIDE; mouth = MOUTH_O; break;
+    default: break;
+    }
+    if (happy > 0.2f && mode != MUSE_MODE_ERROR) { style = EYES_HAPPY; mouth = MOUTH_GRIN; }
+
+    draw_eye(j.fx - eye_dx, eye_y, open, style, s_eyes.gx, s_eyes.gy);
+    draw_eye(j.fx + eye_dx, eye_y, open, style, s_eyes.gx, s_eyes.gy);
+
+    int bl = iround(j.fx - eye_dx), br = iround(j.fx + eye_dx);
+    int by = iround(eye_y) - 6 - ((mode == MUSE_MODE_LISTENING || mode == MUSE_MODE_SURPRISED) ? 1 : 0);
+    if (mode == MUSE_MODE_ANGRY) {
+        px(bl - 1, by, C_BROW); px(bl, by + 1, C_BROW); px(bl + 1, by + 2, C_BROW);
+        px(br - 1, by + 2, C_BROW); px(br, by + 1, C_BROW); px(br + 1, by, C_BROW);
+    } else {
+        int lift_r = (mode == MUSE_MODE_THINKING) ? -1 : 0;
+        px(bl - 1, by, C_BROW); px(bl, by, C_BROW); px(bl + 1, by + 1, C_BROW);
+        px(br - 1, by + 1 + lift_r, C_BROW); px(br, by + lift_r, C_BROW); px(br + 1, by + lift_r, C_BROW);
+    }
+
+    float blush = 0.60f + happy * 0.40f + (mode == MUSE_MODE_LOVE ? 0.35f : (mode == MUSE_MODE_SPEAKING ? 0.15f : 0.0f));
+    draw_blush(iround(j.fx - 9.5f), iround(eye_y + 3), blush);
+    draw_blush(iround(j.fx + 9.5f), iround(eye_y + 3), blush);
+    draw_mouth(iround(j.fx), iround(eye_y + 5), mouth, mouth_open);
+
+    draw_sparkles(p, j.cx, j.cy, true, spk_speed, spk_count);
+
+    float top = j.cy - j.b - 10.0f;
+    if (mode == MUSE_MODE_LISTENING || mode == MUSE_MODE_SPEAKING) draw_waves(j.cx, j.fy + 2, j.a, level, t);
+    if (mode == MUSE_MODE_THINKING) draw_thought_dots(j.cx + 14, top + 4, t);
+    if (happy > 0 || mode == MUSE_MODE_LOVE) draw_hearts(j.cx, top + 2, t, mode == MUSE_MODE_LOVE ? 1.0f : happy);
+    if (mode == MUSE_MODE_ERROR || (mode == MUSE_MODE_SURPRISED && p->mode_t < 0.8f)) {
+        static const char *const BANG[] = { ".##.", ".##.", ".##.", ".##.", "....", ".##." };
+        stamp(BANG, 6, iround(j.cx + 16), iround(top + 2), C_ACC, C_ACC);
+    }
+    if (mode == MUSE_MODE_SLEEPY) draw_zzz(j.cx, top + 2, t);
+    if (mode == MUSE_MODE_ANGRY) {
+        static const char *const VEIN[] = { ".#.#.", "##.##", ".....", "##.##", ".#.#." };
+        stamp(VEIN, 5, iround(j.cx + 12), iround(top + 5) + ((int)(t * 8.0f) & 1), C_HEART, C_ACC);
+    }
+}
+`;
+    }
+
+    /* =========================================================================
+     * 5. RANDOM CREATURE GENERATOR & UI BINDINGS
+     * ========================================================================= */
+    const PREFIXES = ["Sternen", "Kosmos", "Kristall", "Nebel", "Mond", "Solar", "Äther", "Polar", "Aurora", "Traum"];
+    const SPECIES  = ["Wächter", "Geist", "Kobold", "Fuchs", "Drache", "Luchs", "Axolotl", "Kauz", "Faeling", "Astralwesen"];
+
+    const PALETTES = [
+      { body: "#f26b38", skin: "#fff0dc", cyan: "#6cf8ec", iris: "#1cd4a8", blush: "#ff7898" }, // Sunset Kitsune
+      { body: "#2888b8", skin: "#f8d878", cyan: "#98ffee", iris: "#ffa828", blush: "#ff78a8" }, // Sapphire Dragon
+      { body: "#f48eb4", skin: "#fff0f8", cyan: "#80fff8", iris: "#38d8f0", blush: "#ff5888" }, // Sakura Axolotl
+      { body: "#5a4e8c", skin: "#f2e8f0", cyan: "#fff098", iris: "#ffb830", blush: "#ff84a8" }, // Twilight Owl
+      { body: "#f5be38", skin: "#ffdc52", cyan: "#7ceeff", iris: "#2484e8", blush: "#ff9e44" }, // Solar Flame
+      { body: "#2eb886", skin: "#e8fff4", cyan: "#fff480", iris: "#ff68a8", blush: "#ff8898" }, // Emerald Forest Sprite
+      { body: "#9c4dcc", skin: "#f8e8ff", cyan: "#60ffdf", iris: "#ffcf40", blush: "#ff68b8" }, // Amethyst Void Imp
+      { body: "#e04868", skin: "#ffeef2", cyan: "#70f0ff", iris: "#40e0d0", blush: "#ff9870" }, // Ruby Starling
+    ];
+
+    function randomizeCreature() {
+      dna.seed = Math.floor(1000 + Math.random() * 9000);
+      const pName = PREFIXES[Math.floor(Math.random() * PREFIXES.length)];
+      const sName = SPECIES[Math.floor(Math.random() * SPECIES.length)];
+      dna.name = `${pName}-${sName} #${dna.seed}`;
+
+      dna.ears     = Math.floor(Math.random() * 8);
+      dna.crown    = Math.floor(Math.random() * 5);
+      dna.wings    = Math.floor(Math.random() * 3);
+      dna.tail     = Math.floor(Math.random() * 4);
+      dna.belly    = Math.floor(Math.random() * 6);
+      dna.eyes     = Math.floor(Math.random() * 5);
+      dna.mouth    = Math.floor(Math.random() * 4);
+      dna.particle = Math.floor(Math.random() * 3);
+
+      const pal = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+      dna.bodyHex  = pal.body;
+      dna.skinHex  = pal.skin;
+      dna.cyanHex  = pal.cyan;
+      dna.irisHex  = pal.iris;
+      dna.blushHex = pal.blush;
+
+      dna.bodyRx     = 13.8 + Math.random() * 2.0;
+      dna.bodyRy     = 17.5 + Math.random() * 2.5;
+      dna.headWiden  = 0.08 + Math.random() * 0.16;
+      dna.neckPinch  = 0.08 + Math.random() * 0.16;
+      dna.bellyBulge = 0.06 + Math.random() * 0.14;
+
+      syncUIFromDNA();
+    }
+
+    function syncUIFromDNA() {
+      document.getElementById("creatureNameBadge").textContent = dna.name;
+      document.getElementById("seedDisplay").textContent = `Seed: 0x${dna.seed.toString(16).toUpperCase()}`;
+      document.getElementById("selEars").value     = String(dna.ears);
+      document.getElementById("selCrown").value    = String(dna.crown);
+      document.getElementById("selWings").value    = String(dna.wings);
+      document.getElementById("selTail").value     = String(dna.tail);
+      document.getElementById("selBelly").value    = String(dna.belly);
+      document.getElementById("selEyes").value     = String(dna.eyes);
+      document.getElementById("selMouth").value    = String(dna.mouth);
+      document.getElementById("selParticle").value = String(dna.particle);
+
+      document.getElementById("colBody").value = dna.bodyHex;
+      document.getElementById("colSkin").value = dna.skinHex;
+      document.getElementById("colCyan").value = dna.cyanHex;
+      document.getElementById("colIris").value = dna.irisHex;
+
+      document.getElementById("codeOutput").value = generateCCode();
+    }
+
+    function bindInputs() {
+      const bindSel = (id, key) => {
+        document.getElementById(id).addEventListener("change", e => {
+          dna[key] = parseInt(e.target.value, 10);
+          document.getElementById("codeOutput").value = generateCCode();
+        });
+      };
+      bindSel("selEars", "ears");
+      bindSel("selCrown", "crown");
+      bindSel("selWings", "wings");
+      bindSel("selTail", "tail");
+      bindSel("selBelly", "belly");
+      bindSel("selEyes", "eyes");
+      bindSel("selMouth", "mouth");
+      bindSel("selParticle", "particle");
+
+      const bindCol = (id, key) => {
+        document.getElementById(id).addEventListener("input", e => {
+          dna[key] = e.target.value;
+          document.getElementById("codeOutput").value = generateCCode();
+        });
+      };
+      bindCol("colBody", "bodyHex");
+      bindCol("colSkin", "skinHex");
+      bindCol("colCyan", "cyanHex");
+      bindCol("colIris", "irisHex");
+
+      document.getElementById("btnRandom").addEventListener("click", randomizeCreature);
+      document.getElementById("btnPet").addEventListener("click", () => { happy_t = t; });
+
+      document.getElementById("rngLevel").addEventListener("input", e => {
+        const v = parseFloat(e.target.value);
+        document.getElementById("lblAutoTalk").textContent = v === 0 ? "Auto" : `${Math.round(v * 100)}%`;
+      });
+
+      document.getElementById("btnCopyC").addEventListener("click", () => {
+        navigator.clipboard.writeText(document.getElementById("codeOutput").value);
+        const btn = document.getElementById("btnCopyC");
+        btn.textContent = "✅ Kopiert!";
+        setTimeout(() => { btn.textContent = "📋 Code kopieren"; }, 1800);
+      });
+
+      document.getElementById("btnDownloadC").addEventListener("click", () => {
+        const blob = new Blob([document.getElementById("codeOutput").value], { type: "text/x-csrc" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `muse_pixel_${dna.seed}.c`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      // Render Mode Buttons
+      const container = document.getElementById("modeButtons");
+      MODES.forEach(m => {
+        const btn = document.createElement("button");
+        btn.className = "mode-btn px-2.5 py-2 rounded-xl text-xs font-semibold border transition flex items-center justify-center gap-1";
+        btn.textContent = m.label;
+        btn.dataset.id = m.id;
+        btn.addEventListener("click", () => {
+          currentMode = m.id;
+          mode_t = 0;
+          updateModeButtons();
+        });
+        container.appendChild(btn);
+      });
+      updateModeButtons();
+    }
+
+    function updateModeButtons() {
+      document.querySelectorAll(".mode-btn").forEach(btn => {
+        const active = parseInt(btn.dataset.id, 10) === currentMode;
+        btn.className = active
+          ? "mode-btn px-2.5 py-2 rounded-xl text-xs font-bold border border-cyan-400 bg-cyan-500/20 text-cyan-200 shadow-sm"
+          : "mode-btn px-2.5 py-2 rounded-xl text-xs font-medium border border-slate-800 bg-slate-950/70 text-slate-400 hover:bg-slate-800 hover:text-slate-200";
+      });
+    }
+
+    // Main loop (25 fps = 40ms frame time, matching Muse hardware)
+    let lastTime = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.1, (now - lastTime) / 1000);
+      lastTime = now;
+      renderFrame(dt);
+      requestAnimationFrame(loop);
+    }
+
+    bindInputs();
+    randomizeCreature();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
