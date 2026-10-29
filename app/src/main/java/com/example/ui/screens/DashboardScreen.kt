@@ -69,6 +69,7 @@ import com.example.ui.theme.simOutlinedTextFieldColors
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.components.AvatarGeneratorPanel
 import com.example.ui.components.SimpleAvatarChooser
+import com.example.ui.components.AppUpdateCard
 import com.example.ui.components.AvatarPixelView
 import com.example.ui.components.AcceptedAvatarPixelView
 import com.example.ui.components.AcceptedAvatarFrames
@@ -182,7 +183,7 @@ fun DashboardScreen(
                 containerColor = Color.White,
                 contentColor = CyanPrimary
             ) {
-                listOf("System", "Figuren", "Netzwerk", "Sprachdienst").forEachIndexed { index, label ->
+                listOf("System", "Figuren", "Netzwerk", "Sprachdienst", "App").forEachIndexed { index, label ->
                     Tab(
                         selected = tab == index,
                         onClick = { tab = index },
@@ -226,12 +227,13 @@ fun DashboardScreen(
                     onSaveWifi = onSaveWifi,
                     onForgetWifi = onForgetWifi
                 )
-                else -> AgentPanel(
+                3 -> AgentPanel(
                     state = state,
                     onReadAgent = onReadAgent,
                     onSaveAgent = onSaveAgent,
                     onRemoveAgent = onRemoveAgent
                 )
+                else -> AppUpdateCard()
             }
 
             Spacer(modifier = Modifier.height(16.dp))
