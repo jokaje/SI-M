@@ -79,8 +79,16 @@ def read_apk_metadata(apk: Path) -> tuple[int, str, int]:
     package_line = next(line for line in text.splitlines() if line.startswith("package:"))
     version_code = re.search(r"versionCode='(\d+)'", package_line)
     version_name = re.search(r"versionName='([^']*)'", package_line)
-    sdk_line = next((line for line in text.splitlines() if line.startswith("sdkVersion:")), "")
-    min_sdk = re.search(r"sdkVersion:'(\d+)'", sdk_line)
+    # aapt2 prints "minSdkVersion:'26'", legacy aapt prints "sdkVersion:'26'"
+    sdk_line = next(
+        (
+            line
+            for line in text.splitlines()
+            if line.startswith("minSdkVersion:") or line.startswith("sdkVersion:")
+        ),
+        "",
+    )
+    min_sdk = re.search(r"[sS]dkVersion:'(\d+)'", sdk_line)
     if not (version_code and version_name and min_sdk):
         raise SystemExit("APK-Metadaten unvollständig; versionCode/versionName/minSdk explizit angeben.")
     if f"package: name='{PACKAGE_NAME}'" not in package_line:
