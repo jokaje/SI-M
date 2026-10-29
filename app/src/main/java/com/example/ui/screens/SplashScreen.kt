@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.theme.CyanPrimaryLight
 import com.example.ui.theme.IndigoAccent
+import com.example.ui.theme.simPalette
 
 @Composable
 fun SplashScreen(
@@ -46,6 +47,7 @@ fun SplashScreen(
     statusText: String,
     modifier: Modifier = Modifier
 ) {
+    val p = simPalette()
     val infiniteTransition = rememberInfiniteTransition(label = "splashPulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
@@ -63,9 +65,9 @@ fun SplashScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFF0F9FF),
-                        Color(0xFFE0F2FE)
+                        p.card,
+                        p.surface,
+                        p.accentSoft
                     )
                 )
             )
@@ -87,13 +89,14 @@ fun SplashScreen(
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
+                                // brand logo gradient: identical in both modes on purpose
                                 Color(0xFF38BDF8),
                                 Color(0xFF0284C7),
                                 Color(0xFF0F172A)
                             )
                         )
                     )
-                    .border(3.dp, Color(0xFFBAE6FD), CircleShape),
+                    .border(3.dp, p.infoInk, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 // Internal AI Core
@@ -103,7 +106,7 @@ fun SplashScreen(
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                listOf(Color(0xFFFFFFFF), Color(0xFF67E8F9), Color(0xFF6366F1))
+                                listOf(Color(0xFFFFFFFF), p.accent, p.accentAlt)
                             )
                         )
                         .border(2.dp, Color.White, CircleShape),
@@ -113,7 +116,7 @@ fun SplashScreen(
                         modifier = Modifier
                             .size(16.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF0284C7))
+                            .background(p.accent)
                     )
                 }
             }
@@ -124,7 +127,7 @@ fun SplashScreen(
                 text = "SI-M",
                 fontSize = 38.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF0F172A),
+                color = p.ink,
                 letterSpacing = 2.sp
             )
 
@@ -139,7 +142,7 @@ fun SplashScreen(
             Text(
                 text = "Companion für deinen SI-M Orb",
                 fontSize = 14.sp,
-                color = Color(0xFF64748B),
+                color = p.muted,
                 modifier = Modifier.padding(top = 6.dp)
             )
 
@@ -153,7 +156,7 @@ fun SplashScreen(
                     .clip(RoundedCornerShape(4.dp))
                     .testTag("splash_progress"),
                 color = CyanPrimary,
-                trackColor = Color(0xFFCBD5E1)
+                trackColor = p.muted
             )
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -161,7 +164,7 @@ fun SplashScreen(
             Text(
                 text = statusText,
                 fontSize = 12.sp,
-                color = Color(0xFF64748B),
+                color = p.muted,
                 textAlign = TextAlign.Center
             )
         }

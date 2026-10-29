@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.simOutlinedTextFieldColors
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.theme.IndigoAccent
+import com.example.ui.theme.simPalette
 
 @Composable
 fun AuthScreen(
@@ -63,6 +64,7 @@ fun AuthScreen(
     onAuthenticate: (email: String, name: String, passcode: String, register: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val p = simPalette()
     var email by remember(initialEmail) { mutableStateOf(initialEmail) }
     var password by remember { mutableStateOf("") }
     var name by remember(initialName) { mutableStateOf(initialName) }
@@ -76,9 +78,9 @@ fun AuthScreen(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFF8FAFC),
-                        Color(0xFFF1F5F9)
+                        p.card,
+                        p.surface,
+                        p.cardAlt
                     )
                 )
             )
@@ -100,10 +102,15 @@ fun AuthScreen(
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
-                            listOf(Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF0F172A))
+                            listOf(
+                                // brand logo gradient: identical in both modes on purpose
+                                Color(0xFF38BDF8),
+                                Color(0xFF0284C7),
+                                Color(0xFF0F172A)
+                            )
                         )
                     )
-                    .border(2.dp, Color(0xFFBAE6FD), CircleShape),
+                    .border(2.dp, p.infoInk, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
@@ -128,14 +135,14 @@ fun AuthScreen(
                 text = "SI-M",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
+                color = p.ink,
                 letterSpacing = 1.sp
             )
 
             Text(
                 text = "Super Intelligence Mobile Companion",
                 fontSize = 13.sp,
-                color = Color(0xFF64748B),
+                color = p.muted,
                 textAlign = TextAlign.Center
             )
 
@@ -145,7 +152,7 @@ fun AuthScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(12.dp, RoundedCornerShape(20.dp), spotColor = Color(0x1A000000)),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = p.card),
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -153,7 +160,7 @@ fun AuthScreen(
                         text = if (register) "Lokales Profil anlegen" else "Profil entsperren",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = p.ink
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -216,7 +223,7 @@ fun AuthScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = error,
-                            color = Color(0xFFB91C1C),
+                            color = p.danger,
                             fontSize = 12.sp,
                             lineHeight = 17.sp
                         )
@@ -252,7 +259,7 @@ fun AuthScreen(
             Text(
                 text = "Das Profil bleibt auf diesem Gerät. Das Passwort wird nur als Prüfsumme im Android-Keystore gespeichert.",
                 fontSize = 11.sp,
-                color = Color(0xFF94A3B8),
+                color = p.muted,
                 textAlign = TextAlign.Center,
                 lineHeight = 16.sp
             )

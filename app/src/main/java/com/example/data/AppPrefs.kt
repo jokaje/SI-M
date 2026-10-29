@@ -10,10 +10,24 @@ import com.example.orb.AvatarDnaWire
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Chosen appearance; SYSTEM follows the Android day/night setting. */
+enum class ThemeMode { SYSTEM, LIGHT, DARK;
+    fun isDark(systemDark: Boolean): Boolean = when (this) {
+        SYSTEM -> systemDark
+        LIGHT -> false
+        DARK -> true
+    }
+}
+
 /** Non-secret local preferences: onboarding state and the app-side avatar. */
 class AppPrefs(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences("si_m_prefs", Context.MODE_PRIVATE)
+
+    var themeMode: ThemeMode
+        get() = runCatching { ThemeMode.valueOf(prefs.getString("theme_mode", null) ?: ThemeMode.SYSTEM.name) }
+            .getOrDefault(ThemeMode.SYSTEM)
+        set(value) { prefs.edit().putString("theme_mode", value.name).apply() }
 
     var onboardingCompleted: Boolean
         get() = prefs.getBoolean("onboarding_completed", false)

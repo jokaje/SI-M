@@ -71,6 +71,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.model.CreatureDna
 import com.example.ui.theme.CyanPrimary
 import kotlin.math.sin
+import com.example.ui.theme.simPalette
 
 @Composable
 fun CameraEyeScreen(
@@ -78,6 +79,7 @@ fun CameraEyeScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val p = simPalette()
     BackHandler { onClose() }
 
     val context = LocalContext.current
@@ -182,7 +184,7 @@ fun CameraEyeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "SI-M Auge zeigt nur eine lokale Vorschau auf diesem Gerät. Es werden keine Bilder an den Orb gesendet.",
-                        color = Color(0xFF94A3B8),
+                        color = p.muted,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center
                     )
@@ -205,7 +207,7 @@ fun CameraEyeScreen(
 
             // Corner brackets
             val bracketLen = 42f
-            val bracketColor = Color(0xFF38BDF8)
+            val bracketColor = p.accent
             val strokeW = 3f
 
             // Top Left
@@ -266,7 +268,7 @@ fun CameraEyeScreen(
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xBB0A0F1D)),
                 shape = RoundedCornerShape(20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8))
+                border = androidx.compose.foundation.BorderStroke(1.dp, p.accent)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -276,7 +278,7 @@ fun CameraEyeScreen(
                         modifier = Modifier
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF22C55E))
+                            .background(p.success)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -333,7 +335,7 @@ fun CameraEyeScreen(
                         Text(
                             text = "Vorschau-Modus · keine Objekterkennung",
                             fontSize = 11.sp,
-                            color = Color(0xFF38BDF8)
+                            color = p.accent
                         )
                     }
 
@@ -347,7 +349,7 @@ fun CameraEyeScreen(
                             text = "LOKAL",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF67E8F9),
+                            color = p.accent,
                             fontFamily = FontFamily.Monospace
                         )
                     }
@@ -359,8 +361,8 @@ fun CameraEyeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Keine Verbindung zum Orb", fontSize = 11.sp, color = Color(0xFF94A3B8))
-                    Text(text = "Bild bleibt auf diesem Gerät", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    Text(text = "Keine Verbindung zum Orb", fontSize = 11.sp, color = p.muted)
+                    Text(text = "Bild bleibt auf diesem Gerät", fontSize = 11.sp, color = p.muted)
                 }
             }
         }

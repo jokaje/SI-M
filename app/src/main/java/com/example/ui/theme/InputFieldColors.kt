@@ -5,23 +5,33 @@ import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-/** Inputs sit on fixed white cards even when the system theme is dark. */
+/** Input colours, derived from the active palette so light and dark stay consistent. */
 internal data class InputFieldPalette(
     val text: Color, val container: Color, val cursor: Color, val label: Color,
     val placeholder: Color, val icon: Color, val outline: Color,
     val disabledText: Color, val disabledLabel: Color, val errorText: Color, val errorLabel: Color
 )
 
-internal fun inputFieldPalette(@Suppress("UNUSED_PARAMETER") dark: Boolean): InputFieldPalette = InputFieldPalette(
-    text = DeepSlate, container = Color.White, cursor = CyanPrimary,
-    label = MutedText, placeholder = MutedText, icon = MutedText, outline = MutedText,
-    disabledText = MutedText, disabledLabel = MutedText,
-    errorText = DeepSlate, errorLabel = Color(0xFFB91C1C)
-)
+internal fun inputFieldPalette(dark: Boolean): InputFieldPalette {
+    val p = simPaletteFor(dark)
+    return InputFieldPalette(
+        text = p.ink,
+        container = p.card,
+        cursor = p.accent,
+        label = p.muted,
+        placeholder = p.muted,
+        icon = p.muted,
+        outline = p.muted,
+        disabledText = p.muted,
+        disabledLabel = p.muted,
+        errorText = p.ink,
+        errorLabel = p.danger
+    )
+}
 
 @Composable
 fun simOutlinedTextFieldColors(): TextFieldColors {
-    val p = inputFieldPalette(false)
+    val p = inputFieldPalette(LocalSimDark.current)
     return OutlinedTextFieldDefaults.colors(
         focusedTextColor = p.text, unfocusedTextColor = p.text,
         disabledTextColor = p.disabledText, errorTextColor = p.errorText,

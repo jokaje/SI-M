@@ -11,9 +11,11 @@ import com.example.update.UpdateManifest
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
+import com.example.ui.theme.simPalette
 
 @Composable
 fun AppUpdateCard() {
+    val p = simPalette()
     val context = androidx.compose.ui.platform.LocalContext.current
     val updater = remember(context) { GithubUpdate(context) }
     val scope = rememberCoroutineScope()
@@ -23,11 +25,11 @@ fun AppUpdateCard() {
     var message by remember { mutableStateOf("GitHub-Releases prüfen") }
     var progress by remember { mutableIntStateOf(0) }
     DisposableEffect(updater) { onDispose { job?.cancel() } }
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+    Card(colors = CardDefaults.cardColors(containerColor = p.card), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text("App-Update", style = MaterialTheme.typography.titleMedium, color = Color(0xFF102033))
-            Text(message, color = Color(0xFF334155))
-            manifest?.let { Text("Version ${it.versionName}: ${it.releaseNotes}", color = Color(0xFF334155)) }
+            Text("App-Update", style = MaterialTheme.typography.titleMedium, color = p.ink)
+            Text(message, color = p.body)
+            manifest?.let { Text("Version ${it.versionName}: ${it.releaseNotes}", color = p.body) }
             if (job?.isActive == true && progress > 0) LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth())
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(enabled = job?.isActive != true, onClick = {

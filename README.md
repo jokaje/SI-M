@@ -15,6 +15,8 @@
 - **Sprachdienst-Konfiguration:** HTTPS-Bridge für `/v1/turn-stream` einschließlich Bearer-Zugangsdaten auf dem Orb hinterlegen oder entfernen. Stimme, Persona und Erinnerungen sind getrennte Zuständigkeiten; ein öffentlicher KI-Dienst und Zugangsdaten sind nicht enthalten.
 - **Kamera:** lokale CameraX-Vorschau; keine Bildübertragung zum Orb und keine behauptete Objekterkennung.
 - **App-Update aus GitHub Releases:** Der Knopf „Jetzt prüfen“ liest `releases/latest/download/update.json` aus diesem Repository. Ein gefundenes Update zeigt Version und Änderungsnotizen, lädt die APK erst auf Knopfdruck und prüft dabei Größe, SHA-256, Paketname, Versionsnummer und **die Signatur der bereits installierten App**. Erst danach öffnet sich der Android-Installer; ohne Zustimmung wird nichts installiert. Update-Adressen sind auf die Release-Assets dieses Repositories festgenagelt, Umleitungen auf fremde Hosts werden abgelehnt.
+- **Hell und dunkel:** Die App folgt dem Android-Nachtmodus und lässt sich zusätzlich unter **System → Darstellung** fest auf Hell oder Dunkel stellen. Alle Oberflächen beziehen ihre Farben aus einer gemeinsamen semantischen Palette, damit Text und Karten in beiden Modi zusammenpassen; die Kontraste sind per Unit-Test abgesichert.
+- **Dashboard mit Symbolen:** Die Tabs tragen Symbole statt Beschriftungen (System, Figuren, Netzwerk, Sprachdienst, App). Der aktive Tab wird benannt, und jedes Symbol hat eine Beschreibung für Screenreader.
 
 Backups sind deaktiviert. Der App-Quellcode ersetzt keine Sicherheits- oder Funktionsprüfung auf echter Hardware.
 
@@ -44,7 +46,7 @@ Android Studio mit **JDK 17**, **Android SDK 35**, **Build-Tools 36.0.0**, **NDK
 ./gradlew :app:testDebugUnitTest
 ```
 
-Unter Windows `gradlew.bat` verwenden. Die Debug-APK entsteht unter `app/build/outputs/apk/debug/app-debug.apk`. Sie trägt einen **Debug-Signaturschlüssel**, nicht automatisch das Zertifikat einer zuvor installierten App. Für ein Update ist deren bestehendes Release-Zertifikat nötig; Signing-Keys und eine veröffentlichte Release-APK sind hier nicht enthalten. Quellversion: **1.2.2 (versionCode 8)**.
+Unter Windows `gradlew.bat` verwenden. Die Debug-APK entsteht unter `app/build/outputs/apk/debug/app-debug.apk`. Sie trägt einen **Debug-Signaturschlüssel**, nicht automatisch das Zertifikat einer zuvor installierten App. Für ein Update ist deren bestehendes Release-Zertifikat nötig; Signing-Keys und eine veröffentlichte Release-APK sind hier nicht enthalten. Quellversion: **1.2.3 (versionCode 9)**.
 
 Renderer-Testanleitung: [`shared/README.md`](shared/README.md). Ein kompletter Sprachdialog erfordert separat bereitgestellte kompatible Orb-Firmware und einen eigens konfigurierten Dienst; der App-Build allein beweist keinen Gerätebetrieb.
 

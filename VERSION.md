@@ -1,9 +1,9 @@
-# SI-M 1.2.2 (versionCode 8)
+# SI-M 1.2.3 (versionCode 9)
 
-**Neu: In-App-Update über GitHub Releases.** Der Knopf „Jetzt prüfen“ liest `releases/latest/download/update.json`, zeigt Version und Änderungsnotizen, lädt die APK nur auf Knopfdruck und prüft Größe, SHA-256, Paketname, `versionCode`, `minSdk` und die Signatur der installierten App, bevor der Android-Installer startet. Update-Adressen sind auf die Release-Assets dieses Repositories festgelegt, fremde Hosts und unsichere Umleitungen werden abgelehnt. Nur manuelle Prüfung, kein Hintergrunddienst, kein automatischer Download.
+**Neu: echter Dunkelmodus und Icon-Tabs.** Die App folgt jetzt dem Android-Nachtmodus und lässt sich zusätzlich pro App umschalten (System / Hell / Dunkel) — die Wahl liegt im Tab **System → Darstellung** und bleibt gespeichert. Alle Oberflächen lesen ihre Farben aus einer gemeinsamen semantischen Palette, sodass Text, Karten, Eingabefelder und Statusfarben in beiden Modi zusammenpassen; Kontraste für Text liegen bei mindestens 4,5:1, für Akzente und Rahmen bei mindestens 3:1.
 
-**Lizenz:** Eigenständige SI-M-Beiträge unter Apache License 2.0 (`LICENSE`, `NOTICE`). Drittanbieter- und Upstream-Rechte bleiben unverändert (`THIRD_PARTY_NOTICES.md`); der ausgeschlossene Jollybot-Charakter bleibt ausgenommen.
+**Dashboard mit Symbolen statt Text:** System (Zahnrad), Figuren (Menschen), Netzwerk (Weltkugel), Sprachdienst (Flagge), App (Update). Der Name des aktiven Tabs steht weiterhin darunter, und jeder Tab trägt eine Beschreibung für Screenreader.
 
-**Enthalten aus 1.2.1/1.2.2:** gemeinsamer C11-64×64-Pixelrenderer über JNI, versionierte 48-Byte-DNA, fünf mitgelieferte Figuren mit Einfach-/Experte-Auswahl, lokale Entwürfe und Favoriten, kontrastgeprüfte helle und dunkle Palette, abgesichertes Onboarding, BLE-Kopplung mit Besitznachweis, WLAN-/Gerätebefehle, Sprachdienst-Konfiguration und lokale Kamera-Vorschau.
+**Enthalten aus 1.2.2:** In-App-Update über GitHub Releases mit Prüfsummen-, Größen- und Signaturkontrolle vor der Installation, Apache-2.0-Lizenz für eigenständige Beiträge, gemeinsamer C11-64×64-Pixelrenderer über JNI, fünf mitgelieferte Figuren, Onboarding, BLE-Kopplung mit Besitznachweis, WLAN-/Gerätebefehle, Sprachdienst-Konfiguration und lokale Kamera-Vorschau.
 
-**Grenzen:** Keine veröffentlichte Release-APK, kein Gerätetest gegen ein echtes GitHub-Release und keine behauptete CI-Freigabe. Der Build trägt den Debug-Schlüssel; für Update-Fähigkeit über Installationen hinweg ist ein dauerhaftes Release-Zertifikat nötig. Physischer Orb und Firmware sind separat.
+**Grenzen:** Der Build trägt den Debug-Schlüssel; für Update-Fähigkeit über Installationen hinweg ist ein dauerhaftes Release-Zertifikat nötig. Physischer Orb und Firmware sind separat.

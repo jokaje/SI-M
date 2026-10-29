@@ -1,10 +1,8 @@
 package com.example.ui.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,22 +13,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SettingsBrightness
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -39,6 +45,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -54,19 +62,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.ThemeMode
 import com.example.model.CreatureDna
-import com.example.model.CreatureEmotion
 import com.example.orb.AgentProtocol
 import com.example.orb.SetupState
 import com.example.orb.WifiPresentation
 import com.example.ui.theme.simOutlinedTextFieldColors
-import com.example.ui.theme.CyanPrimary
+import com.example.ui.theme.simPalette
 import com.example.ui.components.AvatarGeneratorPanel
 import com.example.ui.components.SimpleAvatarChooser
 import com.example.ui.components.AppUpdateCard
@@ -74,8 +82,18 @@ import com.example.ui.components.AvatarPixelView
 import com.example.ui.components.AcceptedAvatarPixelView
 import com.example.ui.components.AcceptedAvatarFrames
 import com.example.model.AvatarFavorite
-import com.example.ui.theme.MutedText
 import kotlin.math.roundToInt
+
+/** One dashboard tab: icon only, the label stays as accessibility description. */
+private data class DashTab(val label: String, val icon: ImageVector, val tag: String)
+
+private val DashTabs = listOf(
+    DashTab("System", Icons.Default.Settings, "tab_system"),
+    DashTab("Figuren", Icons.Default.Groups, "tab_figures"),
+    DashTab("Netzwerk", Icons.Default.Public, "tab_network"),
+    DashTab("Sprachdienst", Icons.Default.Flag, "tab_agent"),
+    DashTab("App", Icons.Default.SystemUpdate, "tab_app"),
+)
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -109,9 +127,12 @@ fun DashboardScreen(
     onOpenCamera: () -> Unit,
     onStartOnboarding: () -> Unit,
     onLogout: () -> Unit,
+    themeMode: ThemeMode,
+    onThemeMode: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var tab by remember { mutableStateOf(0) }
+    val p = simPalette()
 
     Scaffold(
         topBar = {
@@ -119,7 +140,7 @@ fun DashboardScreen(
                 title = {
                     Column {
                         Text("SI-M", fontWeight = FontWeight.Bold)
-                        Text(displayName.ifBlank { "Lokales Profil" }, fontSize = 11.sp, color = MutedText)
+                        Text(displayName.ifBlank { "Lokales Profil" }, fontSize = 11.sp, color = p.muted)
                     }
                 },
                 actions = {
@@ -128,12 +149,13 @@ fun DashboardScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF0F172A)
+                    containerColor = p.card,
+                    titleContentColor = p.ink,
+                    actionIconContentColor = p.body
                 )
             )
         },
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = p.surface,
         modifier = modifier.testTag("dashboard_screen")
     ) { padding ->
         Column(
@@ -158,7 +180,7 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(10.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                    colors = CardDefaults.cardColors(containerColor = p.infoBg),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Row(
@@ -168,10 +190,10 @@ fun DashboardScreen(
                         Text(
                             "Die Einrichtung ist noch nicht abgeschlossen.",
                             fontSize = 12.sp,
-                            color = Color(0xFF1E3A8A),
+                            color = p.infoInk,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(onClick = onStartOnboarding) { Text("Fortsetzen") }
+                        TextButton(onClick = onStartOnboarding) { Text("Fortsetzen", color = p.accent) }
                     }
                 }
             }
@@ -180,19 +202,46 @@ fun DashboardScreen(
 
             TabRow(
                 selectedTabIndex = tab,
-                containerColor = Color.White,
-                contentColor = CyanPrimary
+                containerColor = p.card,
+                contentColor = p.accent,
+                indicator = { positions ->
+                    if (tab < positions.size) {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(positions[tab]),
+                            color = p.accent
+                        )
+                    }
+                },
+                divider = {}
             ) {
-                listOf("System", "Figuren", "Netzwerk", "Sprachdienst", "App").forEachIndexed { index, label ->
+                DashTabs.forEachIndexed { index, item ->
                     Tab(
                         selected = tab == index,
                         onClick = { tab = index },
-                        text = { Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
+                        modifier = Modifier
+                            .testTag(item.tag)
+                            .padding(vertical = 10.dp),
+                        icon = {
+                            Icon(
+                                item.icon,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(24.dp),
+                                tint = if (tab == index) p.accent else p.muted
+                            )
+                        }
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = DashTabs[tab].label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = p.muted
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             when (tab) {
                 0 -> SystemPanel(
@@ -202,7 +251,9 @@ fun DashboardScreen(
                     onRefreshSettings = onRefreshSettings,
                     onVolume = onVolume,
                     onBrightness = onBrightness,
-                    onSleep = onSleep
+                    onSleep = onSleep,
+                    themeMode = themeMode,
+                    onThemeMode = onThemeMode
                 )
                 1 -> {
                     var expert by remember { mutableStateOf(false) }
@@ -252,9 +303,10 @@ private fun DeviceHeader(
     onDisconnect: () -> Unit,
     onOpenCamera: () -> Unit
 ) {
+    val p = simPalette()
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = p.card),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
@@ -268,7 +320,7 @@ private fun DeviceHeader(
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(if (confirmedId != null) "Orb-Figur: $confirmedId${if (state.connected && state.trusted) " · verifiziert" else " · zuletzt bestätigt"}" else "Lokaler Entwurf · nicht auf Gerät bestätigt", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                    Text(if (confirmedId != null) "Orb-Figur: $confirmedId${if (state.connected && state.trusted) " · verifiziert" else " · zuletzt bestätigt"}" else "Lokaler Entwurf · nicht auf Gerät bestätigt", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = p.ink)
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = when {
@@ -278,17 +330,17 @@ private fun DeviceHeader(
                             else -> "Nicht verbunden"
                         },
                         fontSize = 12.sp,
-                        color = if (state.connected) Color(0xFF16A34A) else MutedText,
+                        color = if (state.connected) p.success else p.muted,
                         fontWeight = FontWeight.Medium
                     )
                     if (state.connected) {
                         Text(
                             state.companionCharacterId?.let { "Figur: $it" } ?: "Figur: nicht gelesen",
                             fontSize = 11.sp,
-                            color = MutedText
+                            color = p.muted
                         )
                         if (state.companionMode != null) {
-                            Text("Modus: ${state.companionMode}", fontSize = 11.sp, color = MutedText)
+                            Text("Modus: ${state.companionMode}", fontSize = 11.sp, color = p.muted)
                         }
                     }
                 }
@@ -300,7 +352,7 @@ private fun DeviceHeader(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = onPair,
-                        colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                        colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.weight(1f)
                     ) {
@@ -319,7 +371,7 @@ private fun DeviceHeader(
                     Text(
                         "Bekannter Orb: $trustedAddress. Verifizierte Verbindung ist auch bei geschlossenem Setup-Fenster nur lesbar möglich. Für Änderungen am Orb physisches Setup öffnen.",
                         fontSize = 11.sp,
-                        color = MutedText
+                        color = p.muted
                     )
                 }
             } else {
@@ -340,13 +392,13 @@ private fun DeviceHeader(
                 Text(
                     "Am Orb das physische Kopplungsfenster starten. Ohne offenes Fenster sind keine Änderungen möglich.",
                     fontSize = 11.sp,
-                    color = Color(0xFFB45309),
+                    color = p.warning,
                     lineHeight = 16.sp
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(state.status, fontSize = 11.sp, color = Color(0xFF475569), lineHeight = 16.sp)
+            Text(state.status, fontSize = 11.sp, color = p.body, lineHeight = 16.sp)
         }
     }
 }
@@ -359,8 +411,11 @@ private fun SystemPanel(
     onRefreshSettings: () -> Unit,
     onVolume: (Int) -> Unit,
     onBrightness: (Int) -> Unit,
-    onSleep: (Int) -> Unit
+    onSleep: (Int) -> Unit,
+    themeMode: ThemeMode,
+    onThemeMode: (ThemeMode) -> Unit
 ) {
+    val p = simPalette()
     val settings = state.settings
     var volume by remember { mutableFloatStateOf(settings?.volume?.toFloat() ?: 50f) }
     var brightness by remember { mutableFloatStateOf(settings?.brightness?.toFloat() ?: 70f) }
@@ -376,12 +431,27 @@ private fun SystemPanel(
             InfoRow("Sicherheitsdienst", if (state.companionSupported) "verfügbar" else "nicht vorhanden")
             InfoRow("Letzter Abruf", if (settings == null) "ausstehend" else "erfolgreich")
             if (state.managementError != null) {
-                Text(state.managementError, fontSize = 11.sp, color = Color(0xFFB45309))
+                Text(state.managementError, fontSize = 11.sp, color = p.warning)
+            }
+        }
+
+        InfoCard("Darstellung") {
+            Text(
+                "Hell, dunkel oder wie das System. Die Auswahl gilt für die ganze App.",
+                fontSize = 11.sp,
+                color = p.muted,
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ThemeChip("System", Icons.Default.SettingsBrightness, ThemeMode.SYSTEM, themeMode, onThemeMode, "theme_system")
+                ThemeChip("Hell", Icons.Default.LightMode, ThemeMode.LIGHT, themeMode, onThemeMode, "theme_light")
+                ThemeChip("Dunkel", Icons.Default.DarkMode, ThemeMode.DARK, themeMode, onThemeMode, "theme_dark")
             }
         }
 
         InfoCard("Anzeige & Ton") {
-            Text("Lautstärke (Vorschau beim Ziehen): ${if (settings == null) "nicht gelesen" else "${volume.roundToInt()} %"}", fontSize = 12.sp, color = Color(0xFF334155))
+            Text("Lautstärke (Vorschau beim Ziehen): ${if (settings == null) "nicht gelesen" else "${volume.roundToInt()} %"}", fontSize = 12.sp, color = p.body)
             Slider(
                 value = volume,
                 onValueChange = { volume = it },
@@ -392,7 +462,7 @@ private fun SystemPanel(
                 valueRange = 10f..80f,
                 enabled = state.authorized && settings != null && !state.busy
             )
-            Text("Helligkeit (Vorschau beim Ziehen): ${if (settings == null) "nicht gelesen" else "${brightness.roundToInt()} %"}", fontSize = 12.sp, color = Color(0xFF334155))
+            Text("Helligkeit (Vorschau beim Ziehen): ${if (settings == null) "nicht gelesen" else "${brightness.roundToInt()} %"}", fontSize = 12.sp, color = p.body)
             Slider(
                 value = brightness,
                 onValueChange = { brightness = it },
@@ -404,7 +474,7 @@ private fun SystemPanel(
                 enabled = state.authorized && settings != null && !state.busy
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Ruhemodus nach", fontSize = 12.sp, color = Color(0xFF334155))
+            Text("Ruhemodus nach", fontSize = 12.sp, color = p.body)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf(0 to "Aus", 30 to "30 s", 120 to "2 min", 600 to "10 min").forEach { (sec, label) ->
                     FilterChip(
@@ -426,7 +496,7 @@ private fun SystemPanel(
         InfoCard("Profil (unverändert)") {
             InfoRow("Persönlichkeit", avatar.profile.personalityProfile)
             InfoRow("Sprachstil", avatar.profile.speechStyle)
-            Text("Das visuelle Pixelwesen kann separat auf den Orb übertragen werden; dieses Profil bleibt lokal unverändert.", fontSize = 11.sp, color = MutedText)
+            Text("Das visuelle Pixelwesen kann separat auf den Orb übertragen werden; dieses Profil bleibt lokal unverändert.", fontSize = 11.sp, color = p.muted)
         }
 
         OutlinedButton(
@@ -442,15 +512,47 @@ private fun SystemPanel(
 }
 
 @Composable
+private fun ThemeChip(
+    label: String,
+    icon: ImageVector,
+    mode: ThemeMode,
+    current: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+    tag: String
+) {
+    val p = simPalette()
+    FilterChip(
+        selected = current == mode,
+        onClick = { onSelect(mode) },
+        modifier = Modifier.testTag(tag),
+        label = { Text(label, fontSize = 11.sp) },
+        leadingIcon = {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = if (current == mode) p.accent else p.muted
+            )
+        },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = p.accentSoft,
+            selectedLabelColor = p.ink,
+            labelColor = p.body
+        )
+    )
+}
+
+@Composable
 private fun FiguresPanel(
     state: SetupState,
     onRefreshCatalog: () -> Unit,
     onSelectFigure: (String) -> Unit
 ) {
+    val p = simPalette()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         InfoCard("Figuren auf dem Orb") {
             if (state.characters.isEmpty()) {
-                Text("Vorschau der fünf eingebauten Figuren · Geräteauswahl erst nach Katalogabruf", fontSize = 11.sp, color = MutedText)
+                Text("Vorschau der fünf eingebauten Figuren · Geräteauswahl erst nach Katalogabruf", fontSize = 11.sp, color = p.muted)
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     AcceptedAvatarFrames.ids.sorted().forEach { id ->
                         AcceptedAvatarPixelView(id, 44.dp, modifier = Modifier.weight(1f))
@@ -461,12 +563,12 @@ private fun FiguresPanel(
                 state.catalogUnsupported -> Text(
                     "Diese Firmware meldet keinen Figurenkatalog. WLAN und Einstellungen bleiben nutzbar.",
                     fontSize = 12.sp,
-                    color = Color(0xFFB45309)
+                    color = p.warning
                 )
                 state.characters.isEmpty() -> Text(
                     "Noch keine Figuren gelesen.",
                     fontSize = 12.sp,
-                    color = MutedText
+                    color = p.muted
                 )
                 else -> state.characters.forEach { figure ->
                     Row(
@@ -482,25 +584,25 @@ private fun FiguresPanel(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Column(Modifier.weight(1f)) {
-                            Text(figure.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                            Text(figure.id, fontSize = 11.sp, color = MutedText)
+                            Text(figure.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = p.ink)
+                            Text(figure.id, fontSize = 11.sp, color = p.muted)
                         }
                         if (figure.id == state.selectedCharacter) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "ausgewählt", tint = Color(0xFF16A34A))
+                            Icon(Icons.Default.CheckCircle, contentDescription = "ausgewählt", tint = p.success)
                         } else {
-                            Text("Auswählen", fontSize = 12.sp, color = CyanPrimary, fontWeight = FontWeight.SemiBold)
+                            Text("Auswählen", fontSize = 12.sp, color = p.accent, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(state.characterStatus, fontSize = 11.sp, color = Color(0xFF475569))
+            Text(state.characterStatus, fontSize = 11.sp, color = p.body)
         }
 
         Button(
             onClick = onRefreshCatalog,
             enabled = state.authorized && !state.busy,
-            colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+            colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Katalog vom Orb lesen")
@@ -508,7 +610,7 @@ private fun FiguresPanel(
         Text(
             "Die Auswahl wird direkt auf dem Orb gespeichert und anschließend zurückgelesen.",
             fontSize = 11.sp,
-            color = MutedText
+            color = p.muted
         )
     }
 }
@@ -521,6 +623,7 @@ private fun NetworkPanel(
     onSaveWifi: (String, String) -> Long?,
     onForgetWifi: (String) -> Unit
 ) {
+    val p = simPalette()
     var selectedSsid by remember { mutableStateOf<String?>(null) }
     var password by remember { mutableStateOf("") }
     var pendingWifi by remember { mutableStateOf<Long?>(null) }
@@ -541,18 +644,18 @@ private fun NetworkPanel(
             InfoRow("Aktuell", WifiPresentation.current(state))
             InfoRow("Status", WifiPresentation.connection(state))
             if (!state.savedNetworksKnown || state.savedNetworks.isEmpty())
-                Text(WifiPresentation.saved(state), fontSize = 12.sp, color = MutedText)
+                Text(WifiPresentation.saved(state), fontSize = 12.sp, color = p.muted)
             if (state.savedNetworksKnown && state.savedNetworks.isNotEmpty()) {
-                Text("Gespeichert", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF334155))
+                Text("Gespeichert", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.body)
                 state.savedNetworks.forEach { name ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(name, fontSize = 12.sp, color = Color(0xFF334155))
+                        Text(name, fontSize = 12.sp, color = p.body)
                         TextButton(onClick = { onForgetWifi(name) }, enabled = state.authorized && !state.busy) {
-                            Text("Entfernen", fontSize = 11.sp, color = Color(0xFFB91C1C))
+                            Text("Entfernen", fontSize = 11.sp, color = p.danger)
                         }
                     }
                 }
@@ -577,7 +680,7 @@ private fun NetworkPanel(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (selectedSsid == ap.ssid) Color(0xFFE0F2FE) else Color.Transparent)
+                            .background(if (selectedSsid == ap.ssid) p.accentSoft else Color.Transparent)
                             .clickable { selectedSsid = ap.ssid }
                             .padding(vertical = 8.dp, horizontal = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -585,12 +688,12 @@ private fun NetworkPanel(
                         Icon(
                             if (ap.secure) Icons.Default.Lock else Icons.Default.Wifi,
                             contentDescription = null,
-                            tint = CyanPrimary,
+                            tint = p.accent,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(ap.ssid, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                        Text("${ap.rssi} dBm", fontSize = 11.sp, color = MutedText)
+                        Text(ap.ssid, fontSize = 13.sp, color = p.ink, modifier = Modifier.weight(1f))
+                        Text("${ap.rssi} dBm", fontSize = 11.sp, color = p.muted)
                     }
                 }
             }
@@ -599,7 +702,7 @@ private fun NetworkPanel(
         if (selectedSsid != null) {
             InfoCard("Netzwerk speichern") {
                 OutlinedTextField(
-                colors = simOutlinedTextFieldColors(),
+                    colors = simOutlinedTextFieldColors(),
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("WLAN-Passwort (8–63 Zeichen)") },
@@ -616,13 +719,13 @@ private fun NetworkPanel(
                         submittedWifi = Pair(ssid, submitted)
                     },
                     enabled = password.length in 8..63 && state.authorized && !state.busy,
-                    colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                    colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Speichern") }
             }
         }
 
-        Text(state.status, fontSize = 11.sp, color = Color(0xFF475569))
+        Text(state.status, fontSize = 11.sp, color = p.body)
     }
 }
 
@@ -633,6 +736,7 @@ private fun AgentPanel(
     onSaveAgent: (String, String) -> Long?,
     onRemoveAgent: () -> Unit
 ) {
+    val p = simPalette()
     val profile = state.agentProfile
     var url by remember { mutableStateOf(profile?.url.orEmpty()) }
     LaunchedEffect(profile?.url) {
@@ -662,7 +766,7 @@ private fun AgentPanel(
                 else -> "nicht gelesen"
             })
             if (profile?.source == "custom") InfoRow("Endpoint", profile.url)
-            Text(state.agentStatus, fontSize = 11.sp, color = Color(0xFF475569), lineHeight = 16.sp)
+            Text(state.agentStatus, fontSize = 11.sp, color = p.body, lineHeight = 16.sp)
         }
 
         if (!state.agentUnsupported) {
@@ -670,12 +774,12 @@ private fun AgentPanel(
                 Text(
                     "Nur eine Bridge für die Route /v1/turn-stream (16-kHz-PCM). Endpoint und Zugangsdaten werden gemeinsam auf dem Orb ersetzt.",
                     fontSize = 11.sp,
-                    color = MutedText,
+                    color = p.muted,
                     lineHeight = 16.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
-                colors = simOutlinedTextFieldColors(),
+                    colors = simOutlinedTextFieldColors(),
                     value = url,
                     onValueChange = { url = it },
                     label = { Text("Endpoint") },
@@ -686,7 +790,7 @@ private fun AgentPanel(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
-                colors = simOutlinedTextFieldColors(),
+                    colors = simOutlinedTextFieldColors(),
                     value = token,
                     onValueChange = { token = it },
                     label = { Text("Bearer-Zugangsdaten") },
@@ -704,7 +808,7 @@ private fun AgentPanel(
                     },
                     enabled = AgentProtocol.validUrl(url) && AgentProtocol.validToken(token) &&
                         state.authorized && !state.busy && !state.agentUnsupported,
-                    colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                    colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Auf dem Orb speichern") }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -727,13 +831,14 @@ private fun AgentPanel(
 
 @Composable
 private fun InfoCard(title: String, content: @Composable () -> Unit) {
+    val p = simPalette()
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = p.card),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = p.ink)
             content()
         }
     }
@@ -741,8 +846,9 @@ private fun InfoCard(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun InfoRow(label: String, value: String) {
+    val p = simPalette()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, fontSize = 12.sp, color = MutedText)
-        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF0F172A))
+        Text(label, fontSize = 12.sp, color = p.muted)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = p.ink)
     }
 }

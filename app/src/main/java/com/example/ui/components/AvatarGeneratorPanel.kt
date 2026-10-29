@@ -12,6 +12,7 @@ import com.example.model.AvatarDraft
 import com.example.model.AvatarFavorite
 import com.example.orb.AvatarDnaWire
 import com.example.orb.SetupState
+import com.example.ui.theme.simPalette
 
 /** Local drafts remain editable offline; device controls are capability and window gated. */
 @Composable
@@ -21,6 +22,7 @@ fun AvatarGeneratorPanel(
     onColor: (Int, String) -> Unit, onSave: () -> Unit, onFavorite: (String) -> Unit,
     onDeleteFavorite: (String) -> Unit, onInstall: () -> Unit, onDeleteDevice: () -> Unit
 ) {
+    val p = simPalette()
     var deleteDeviceDialog by remember { mutableStateOf(false) }
     var deleteFavoriteId by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -64,7 +66,7 @@ fun AvatarGeneratorPanel(
                 TextButton(onClick = { deleteFavoriteId = favorite.id }) { Text("Entfernen") }
             }
         }
-        Text(state.avatarStatus, color = Color(0xFF475569))
+        Text(state.avatarStatus, color = p.body)
         Button(onClick = onInstall, enabled = draft != null && state.connected && state.trusted &&
             state.authorized && state.setupOpen && state.avatarSupported && !state.busy,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Entwurf auf Orb übertragen und aktivieren") }

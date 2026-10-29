@@ -11,16 +11,22 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.AppPrefs
+import com.example.data.ThemeMode
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.CameraEyeScreen
 import com.example.ui.screens.DashboardScreen
@@ -40,7 +46,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            SIMTheme {
+            val appContext = LocalContext.current.applicationContext
+            val prefs = remember(appContext) { AppPrefs(appContext) }
+            var themeMode by remember(appContext) { mutableStateOf(prefs.themeMode) }
+            val systemDark = isSystemInDarkTheme()
+
+            SIMTheme(darkTheme = themeMode.isDark(systemDark)) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -162,7 +173,12 @@ class MainActivity : ComponentActivity() {
                                     onRemoveAgent = { viewModel.removeAgent() },
                                     onOpenCamera = { viewModel.openCameraEye() },
                                     onStartOnboarding = { viewModel.resumeOnboarding() },
-                                    onLogout = { viewModel.logout() }
+                                    onLogout = { viewModel.logout() },
+                                    themeMode = themeMode,
+                                    onThemeMode = { mode ->
+                                        themeMode = mode
+                                        prefs.themeMode = mode
+                                    }
                                 )
                             }
                         }

@@ -62,6 +62,7 @@ import com.example.ui.theme.IndigoAccent
 import com.example.ui.components.SimpleAvatarChooser
 import com.example.model.AvatarFavorite
 import com.example.ui.theme.MutedText
+import com.example.ui.theme.simPalette
 
 @Composable
 fun OnboardingScreen(
@@ -86,6 +87,7 @@ fun OnboardingScreen(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val p = simPalette()
     BackHandler {
         if (avatarBusy) return@BackHandler
         onSetStep(com.example.viewmodel.onboardingBackStep(step))
@@ -94,14 +96,14 @@ fun OnboardingScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(p.surface)
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
             Text(
                 text = "Einrichtung",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = p.ink
             )
             Text(
                 text = "Schritt $step von 4",
@@ -116,7 +118,7 @@ fun OnboardingScreen(
                     .height(7.dp)
                     .clip(RoundedCornerShape(4.dp)),
                 color = CyanPrimary,
-                trackColor = Color(0xFFE2E8F0)
+                trackColor = p.border
             )
         }
 
@@ -178,6 +180,7 @@ private fun StepWifi(
     onForgetWifi: (String) -> Unit,
     onContinue: () -> Unit
 ) {
+    val p = simPalette()
     var selectedSsid by remember { mutableStateOf<String?>(null) }
     var password by remember { mutableStateOf("") }
     var pendingWifi by remember { mutableStateOf<Long?>(null) }
@@ -202,7 +205,7 @@ private fun StepWifi(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Wifi, contentDescription = null, tint = CyanPrimary)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("WLAN auf dem Orb", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+            Text("WLAN auf dem Orb", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = p.ink)
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -216,11 +219,11 @@ private fun StepWifi(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = p.card),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF0F172A))
+                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = p.ink)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = WifiPresentation.onboarding(state),
@@ -239,9 +242,9 @@ private fun StepWifi(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(name, fontSize = 12.sp, color = Color(0xFF334155))
+                            Text(name, fontSize = 12.sp, color = p.body)
                             TextButton(onClick = { onForgetWifi(name) }) {
-                                Text("Entfernen", fontSize = 11.sp, color = Color(0xFFB91C1C))
+                                Text("Entfernen", fontSize = 11.sp, color = p.danger)
                             }
                         }
                     }
@@ -275,7 +278,7 @@ private fun StepWifi(
                     .padding(vertical = 4.dp)
                     .clickable { selectedSsid = ap.ssid },
                 colors = CardDefaults.cardColors(
-                    containerColor = if (selectedSsid == ap.ssid) Color(0xFFE0F2FE) else Color.White
+                    containerColor = if (selectedSsid == ap.ssid) p.accentSoft else p.card
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -332,12 +335,12 @@ private fun StepWifi(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        Text(state.status, fontSize = 12.sp, color = Color(0xFF475569), lineHeight = 17.sp)
+        Text(state.status, fontSize = 12.sp, color = p.body, lineHeight = 17.sp)
 
         Spacer(modifier = Modifier.height(18.dp))
         Button(
             onClick = onContinue,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+            colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -355,6 +358,7 @@ private fun StepAgent(
     onSaveAgent: (String, String) -> Long?,
     onContinue: () -> Unit
 ) {
+    val p = simPalette()
     val profile = state.agentProfile
     var url by remember { mutableStateOf(profile?.url.orEmpty()) }
     LaunchedEffect(profile?.url) {
@@ -383,7 +387,7 @@ private fun StepAgent(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("Sprachdienst", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+        Text("Sprachdienst", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = p.ink)
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Der Orb spricht einen HTTPS-Dienst über die Route /v1/turn-stream an (16-kHz-PCM-Audio). " +
@@ -397,11 +401,11 @@ private fun StepAgent(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = p.card),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF0F172A))
+                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = p.ink)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = when {
@@ -417,10 +421,10 @@ private fun StepAgent(
                 )
                 if (profile?.source == "custom") {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(profile.url, fontSize = 11.sp, color = Color(0xFF334155))
+                    Text(profile.url, fontSize = 11.sp, color = p.body)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(state.agentStatus, fontSize = 12.sp, color = Color(0xFF475569), lineHeight = 17.sp)
+                Text(state.agentStatus, fontSize = 12.sp, color = p.body, lineHeight = 17.sp)
             }
         }
 
@@ -493,7 +497,7 @@ private fun StepAgent(
         Spacer(modifier = Modifier.height(18.dp))
         Button(
             onClick = onContinue,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+            colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -510,6 +514,7 @@ private fun StepDone(
     avatar: CreatureDna,
     onFinish: () -> Unit
 ) {
+    val p = simPalette()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -521,13 +526,13 @@ private fun StepDone(
             modifier = Modifier
                 .size(84.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFDCFCE7)),
+                .background(p.successSoft),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(46.dp))
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = p.success, modifier = Modifier.size(46.dp))
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Einrichtung abgeschlossen", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+        Text("Einrichtung abgeschlossen", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = p.ink)
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             "Diese Angaben hat der Orb bestätigt:",
@@ -538,7 +543,7 @@ private fun StepDone(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = p.card),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -579,8 +584,9 @@ private fun StepDone(
 
 @Composable
 private fun SummaryRow(label: String, value: String) {
+    val p = simPalette()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, fontSize = 12.sp, color = MutedText)
-        Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.ink)
     }
 }

@@ -73,6 +73,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.withStateAtLeast
 import com.example.orb.SetupState
 import com.example.ui.theme.CyanPrimary
+import com.example.ui.theme.simPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +87,7 @@ fun PairingScreen(
     onStop: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val p = simPalette()
     BackHandler { onBack() }
 
     val context = LocalContext.current
@@ -147,12 +149,12 @@ fun PairingScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF0F172A)
+                    containerColor = p.card,
+                    titleContentColor = p.ink
                 )
             )
         },
-        containerColor = Color(0xFFF8FAFC),
+        containerColor = p.surface,
         modifier = modifier.testTag("pairing_screen")
     ) { innerPadding ->
         Column(
@@ -165,8 +167,8 @@ fun PairingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(4.dp, RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                colors = CardDefaults.cardColors(containerColor = p.successSoft),
+                border = androidx.compose.foundation.BorderStroke(1.dp, p.successSoft),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Row(
@@ -177,13 +179,13 @@ fun PairingScreen(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF22C55E).copy(alpha = 0.15f)),
+                            .background(p.success.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Info,
                             contentDescription = "Anleitung",
-                            tint = Color(0xFF16A34A),
+                            tint = p.success,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -195,7 +197,7 @@ fun PairingScreen(
                             text = "Kopplungsfenster am Orb öffnen",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color(0xFF15803D)
+                            color = p.success
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -203,7 +205,7 @@ fun PairingScreen(
                                 "2. Das Fenster bleibt 180 Sekunden offen.\n" +
                                 "3. Halte das Smartphone in die Nähe und gib den Code vom Orb-Display im Android-Dialog ein.",
                             fontSize = 12.sp,
-                            color = Color(0xFF166534),
+                            color = p.success,
                             lineHeight = 18.sp
                         )
                     }
@@ -233,7 +235,7 @@ fun PairingScreen(
                         .size(68.dp)
                         .shadow(12.dp, CircleShape, spotColor = CyanPrimary.copy(alpha = 0.4f))
                         .clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(Color(0xFF38BDF8), CyanPrimary)))
+                        .background(Brush.radialGradient(listOf(p.accent, CyanPrimary)))
                         .border(2.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
@@ -263,7 +265,7 @@ fun PairingScreen(
                 },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF64748B),
+                color = p.muted,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
 
@@ -273,9 +275,9 @@ fun PairingScreen(
                 text = state.status,
                 fontSize = 12.sp,
                 color = if (state.status.contains("fehlt", true) || state.status.contains("nicht", true)) {
-                    Color(0xFFB45309)
+                    p.warning
                 } else {
-                    Color(0xFF475569)
+                    p.body
                 },
                 lineHeight = 18.sp,
                 modifier = Modifier
@@ -288,7 +290,7 @@ fun PairingScreen(
                 Text(
                     text = state.scanDiagnostic,
                     fontSize = 10.sp,
-                    color = Color(0xFF475569),
+                    color = p.body,
                     modifier = Modifier.fillMaxWidth().testTag("scan_diagnostic")
                 )
                 OutlinedButton(
@@ -316,7 +318,7 @@ fun PairingScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                    colors = CardDefaults.cardColors(containerColor = p.infoBg),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(Modifier.padding(16.dp)) {
@@ -324,13 +326,13 @@ fun PairingScreen(
                             "Hast du den sechsstelligen Code vom Orb selbst im Android-Dialog eingegeben?",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1E3A8A),
+                            color = p.infoInk,
                             lineHeight = 18.sp
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Button(
                             onClick = onConfirmPhysicalPairing,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D4ED8)),
+                            colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -354,7 +356,7 @@ fun PairingScreen(
                             .fillMaxWidth()
                             .shadow(2.dp, RoundedCornerShape(16.dp))
                             .testTag("device_card_${device.address}"),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = p.card),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(
@@ -367,7 +369,7 @@ fun PairingScreen(
                                 modifier = Modifier
                                     .size(46.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFE0F2FE)),
+                                    .background(p.accentSoft),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -385,13 +387,13 @@ fun PairingScreen(
                                     text = "SI-M Orb",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    color = Color(0xFF0F172A)
+                                    color = p.ink
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "${device.address} • ${device.rssi} dBm",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748B)
+                                    color = p.muted
                                 )
                             }
 
