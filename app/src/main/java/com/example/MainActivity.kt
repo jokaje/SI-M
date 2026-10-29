@@ -18,6 +18,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.CameraEyeScreen
@@ -36,6 +38,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             SIMTheme {
                 Surface(
@@ -43,6 +46,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                    val orbState by viewModel.orbState.collectAsStateWithLifecycle()
                     val context = LocalContext.current
 
                     LaunchedEffect(uiState.statusToast) {
@@ -66,68 +70,98 @@ class MainActivity : ComponentActivity() {
                             }
                             AppScreen.AUTH -> {
                                 AuthScreen(
-                                    onLoginSuccess = { email, pass -> viewModel.login(email, pass) },
-                                    onGuestLogin = { viewModel.quickGuestLogin() }
+                                    hasAccount = uiState.auth.hasAccount,
+                                    initialEmail = uiState.auth.email,
+                                    initialName = uiState.auth.displayName,
+                                    error = uiState.auth.error,
+                                    busy = uiState.auth.busy,
+                                    onAuthenticate = { email, name, passcode, register ->
+                                        viewModel.authenticate(email, name, passcode, register)
+                                    }
                                 )
                             }
                             AppScreen.PAIRING -> {
                                 PairingScreen(
-                                    isSearching = uiState.isSearchingDevices,
-                                    isPairingInProgress = uiState.isPairingInProgress,
-                                    devices = uiState.discoveredDevices,
-                                    onConnectDevice = { device -> viewModel.connectDevice(device) },
-                                    onBack = { viewModel.navigateBack() },
-                                    onRefreshScan = { viewModel.startPairingMode() }
+                                    state = orbState,
+                                    permissions = viewModel.client.permissions(),
+                                    onStartScan = { viewModel.startScan() },
+                                    onConnect = { address -> viewModel.connect(address) },
+                                    onConfirmPhysicalPairing = { viewModel.confirmPhysicalPairing() },
+                                    onBack = { viewModel.leavePairing() },
+                                    onStop = { viewModel.disconnectOrb() }
                                 )
                             }
                             AppScreen.ONBOARDING -> {
                                 OnboardingScreen(
-                                    currentStep = uiState.onboardingStep,
-                                    draftCharacter = uiState.draftCharacter,
-                                    diceRollsLeft = uiState.randomDiceRollsLeft,
-                                    internetConfig = uiState.internetConfig,
-                                    agentConfig = uiState.agentConfig,
-                                    onRollDice = { viewModel.rollRandomAvatar() },
-                                    onConfirmAvatar = { viewModel.confirmAvatar() },
-                                    onSelectInternetMode = { mode, ssid, pass ->
-                                        viewModel.setInternetMode(mode, ssid, pass)
-                                    },
-                                    onConfirmInternet = { viewModel.confirmInternetAndProceed() },
-                                    onSaveAgentConfig = { type, name, addr, token, prov, key ->
-                                        viewModel.saveAgentConfig(type, name, addr, token, prov, key)
-                                    },
-                                    onFinishToDashboard = { viewModel.finishOnboardingToDashboard() },
-                                    onBack = { viewModel.navigateBack() }
+                                    state = orbState,
+                                    avatar = uiState.avatar,
+                                    draft = uiState.avatarDraft, avatarName = uiState.avatarName, favorites = uiState.favorites,
+                                    step = uiState.onboardingStep,
+                                    selectedChoice = uiState.onboardingChoice, onChoose = viewModel::chooseOnboardingAvatar,
+                                    avatarBusy = uiState.onboardingBusy, avatarError = uiState.onboardingError,
+                                    onRollAvatar = { viewModel.rollAvatar() },
+                                    onNameAvatar = { viewModel.nameAvatar(it) },
+                                    onTrait = { i, value -> viewModel.editAvatarTrait(i, value) },
+                                    onColor = { i, value -> viewModel.editAvatarColor(i, value) },
+                                    onSaveFavorite = { viewModel.saveFavorite() },
+                                    onFavorite = { viewModel.selectFavorite(it) },
+                                    onDeleteFavorite = { viewModel.deleteFavorite(it) },
+                                    onInstall = { viewModel.installAvatar() },
+                                    onDeleteDevice = { viewModel.deleteDeviceAvatar() },
+                                    onConfirmAvatar = { viewModel.confirmOnboardingAvatar() },
+                                    onSelectFigure = { id -> viewModel.selectFigure(id) },
+                                    onSetStep = { step -> viewModel.setOnboardingStep(step) },
+                                    onRefreshNetworks = { viewModel.refreshNetworks() },
+                                    onScanWifi = { viewModel.scanWifi() },
+                                    onSaveWifi = { ssid, pass -> viewModel.saveWifi(ssid, pass) },
+                                    onForgetWifi = { ssid -> viewModel.forgetWifi(ssid) },
+                                    onReadAgent = { viewModel.readAgent() },
+                                    onSaveAgent = { url, token -> viewModel.saveAgent(url, token) },
+                                    onFinish = { viewModel.finishOnboarding() }
                                 )
                             }
                             AppScreen.CAMERA_EYE -> {
                                 CameraEyeScreen(
-                                    activeCharacter = uiState.activeCharacter,
+                                    activeCharacter = uiState.avatar,
                                     onClose = { viewModel.closeCameraEye() }
                                 )
                             }
                             AppScreen.DASHBOARD -> {
                                 DashboardScreen(
-                                    pairedOrb = uiState.pairedOrb,
-                                    characters = uiState.characters,
-                                    activeCharacterIndex = uiState.activeCharacterIndex,
-                                    orbSettings = uiState.orbSettings,
-                                    internetConfig = uiState.internetConfig,
-                                    activeTab = uiState.activeTab,
-                                    onStartPairing = { viewModel.startPairingMode() },
-                                    onSelectCharacter = { idx -> viewModel.setActiveCharacter(idx) },
-                                    onSetEmotion = { emotion -> viewModel.setEmotion(emotion) },
-                                    onOpenCameraEye = { viewModel.openCameraEye() },
-                                    onUpdateVolume = { vol -> viewModel.updateVolume(vol) },
-                                    onUpdateBrightness = { b -> viewModel.updateBrightness(b) },
-                                    onUpdateSoundProfile = { p -> viewModel.updateSoundProfile(p) },
-                                    onUpdateScreenTimeout = { t -> viewModel.updateScreenTimeout(t) },
-                                    onToggleAdaptiveBrightness = { viewModel.toggleAdaptiveBrightness() },
-                                    onToggleWifi = { viewModel.toggleWifi() },
-                                    onToggleBluetooth = { viewModel.toggleBluetooth() },
-                                    onTogglePixelGrid = { viewModel.togglePixelGrid() },
-                                    onDisconnectOrb = { viewModel.disconnectOrb() },
-                                    onSelectTab = { tab -> viewModel.setActiveTab(tab) },
+                                    state = orbState,
+                                    avatar = uiState.avatar,
+                                    draft = uiState.avatarDraft, avatarName = uiState.avatarName, favorites = uiState.favorites,
+                                    onRollAvatar = { viewModel.rollAvatar() },
+                                    onNameAvatar = { viewModel.nameAvatar(it) },
+                                    onTrait = { i, value -> viewModel.editAvatarTrait(i, value) },
+                                    onColor = { i, value -> viewModel.editAvatarColor(i, value) },
+                                    onSaveFavorite = { viewModel.saveFavorite() },
+                                    onFavorite = { viewModel.selectFavorite(it) },
+                                    onDeleteFavorite = { viewModel.deleteFavorite(it) },
+                                    onInstall = { viewModel.installAvatar() },
+                                    onDeleteDevice = { viewModel.deleteDeviceAvatar() },
+                                    displayName = uiState.auth.displayName,
+                                    trustedAddress = viewModel.client.trustedPeerAddress,
+                                    onboardingCompleted = uiState.onboardingCompleted,
+                                    onPair = { viewModel.openPairing() },
+                                    onReconnect = { viewModel.reconnectTrustedIfAvailable() },
+                                    onDisconnect = { viewModel.disconnectOrb() },
+                                    onRefreshAll = { viewModel.refreshManagement() },
+                                    onRefreshSettings = { viewModel.refreshSettings() },
+                                    onVolume = { value -> viewModel.setVolume(value) },
+                                    onBrightness = { value -> viewModel.setBrightness(value) },
+                                    onSleep = { seconds -> viewModel.setSleepSeconds(seconds) },
+                                    onRefreshCatalog = { viewModel.refreshCatalog() },
+                                    onSelectFigure = { id -> viewModel.selectFigure(id) },
+                                    onRefreshNetworks = { viewModel.refreshNetworks() },
+                                    onScanWifi = { viewModel.scanWifi() },
+                                    onSaveWifi = { ssid, pass -> viewModel.saveWifi(ssid, pass) },
+                                    onForgetWifi = { ssid -> viewModel.forgetWifi(ssid) },
+                                    onReadAgent = { viewModel.readAgent() },
+                                    onSaveAgent = { url, token -> viewModel.saveAgent(url, token) },
+                                    onRemoveAgent = { viewModel.removeAgent() },
+                                    onOpenCamera = { viewModel.openCameraEye() },
+                                    onStartOnboarding = { viewModel.resumeOnboarding() },
                                     onLogout = { viewModel.logout() }
                                 )
                             }

@@ -5,14 +5,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,15 +28,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,20 +49,26 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.simOutlinedTextFieldColors
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.theme.IndigoAccent
 
 @Composable
 fun AuthScreen(
-    onLoginSuccess: (email: String, pass: String) -> Unit,
-    onGuestLogin: () -> Unit,
+    hasAccount: Boolean,
+    initialEmail: String = "",
+    initialName: String = "",
+    error: String? = null,
+    busy: Boolean = false,
+    onAuthenticate: (email: String, name: String, passcode: String, register: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) } // 0: Login, 1: Register
-    var email by remember { mutableStateOf("pilot@si-m.internal") }
-    var password by remember { mutableStateOf("OrbMaster2026") }
-    var name by remember { mutableStateOf("Josua") }
+    var email by remember(initialEmail) { mutableStateOf(initialEmail) }
+    var password by remember { mutableStateOf("") }
+    var name by remember(initialName) { mutableStateOf(initialName) }
     var passwordVisible by remember { mutableStateOf(false) }
+
+    val register = !hasAccount
 
     Box(
         modifier = modifier
@@ -94,7 +93,6 @@ fun AuthScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Bright Modern Header Icon
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -143,7 +141,6 @@ fun AuthScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Auth Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -152,31 +149,17 @@ fun AuthScreen(
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    TabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = Color(0xFFF1F5F9),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .height(44.dp)
-                    ) {
-                        Tab(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = { Text("Anmelden", fontWeight = FontWeight.SemiBold, fontSize = 14.sp) },
-                            modifier = Modifier.testTag("tab_login")
-                        )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            text = { Text("Registrieren", fontWeight = FontWeight.SemiBold, fontSize = 14.sp) },
-                            modifier = Modifier.testTag("tab_register")
-                        )
-                    }
+                    Text(
+                        text = if (register) "Lokales Profil anlegen" else "Profil entsperren",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    if (selectedTab == 1) {
+                    if (register) {
                         OutlinedTextField(
+                colors = simOutlinedTextFieldColors(),
                             value = name,
                             onValueChange = { name = it },
                             label = { Text("Dein Name") },
@@ -191,10 +174,11 @@ fun AuthScreen(
                     }
 
                     OutlinedTextField(
+                colors = simOutlinedTextFieldColors(),
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("E-Mail-Adresse") },
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = "E-Mail") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -206,9 +190,10 @@ fun AuthScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
+                colors = simOutlinedTextFieldColors(),
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Passwort") },
+                        label = { Text(if (register) "Passwort (min. 6 Zeichen)" else "Passwort") },
                         leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Passwort") },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -227,10 +212,21 @@ fun AuthScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
+                    if (error != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = error,
+                            color = Color(0xFFB91C1C),
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
-                        onClick = { onLoginSuccess(email, password) },
+                        onClick = { onAuthenticate(email, name, password, register) },
+                        enabled = !busy && email.isNotBlank() && password.length >= 6 && (!register || name.isNotBlank()),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
@@ -239,23 +235,14 @@ fun AuthScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = if (selectedTab == 0) "Anmelden & Fortfahren" else "Konto erstellen",
+                            text = when {
+                                busy -> "Bitte warten …"
+                                register -> "Profil anlegen"
+                                else -> "Entsperren"
+                            },
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedButton(
-                        onClick = onGuestLogin,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("guest_login_button"),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Schnellzugang als Gast", color = Color(0xFF334155), fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -263,10 +250,11 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Sichere Verschlüsselung mit SI-M Neural Security Protocol",
+                text = "Das Profil bleibt auf diesem Gerät. Das Passwort wird nur als Prüfsumme im Android-Keystore gespeichert.",
                 fontSize = 11.sp,
                 color = Color(0xFF94A3B8),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp
             )
         }
     }

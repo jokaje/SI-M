@@ -57,7 +57,10 @@ fun SIMTheme(
     dynamicColor: Boolean = false, // Keep consistent bright futuristic identity
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
+    val colorScheme = simAppColorScheme(darkTheme)
+    /* All application screens use fixed light panels and dark ink, including when Android
+       requests night mode. Keep their Material defaults in the SAME owned palette. */
+    /* val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -66,9 +69,13 @@ fun SIMTheme(
         else -> LightColorScheme
     }
 
+    */
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
         content = content
     )
 }
+
+/** One coherent application-owned palette for both OS modes; never mix dark defaults with white cards. */
+internal fun simAppColorScheme(@Suppress("UNUSED_PARAMETER") systemDark: Boolean) = LightColorScheme

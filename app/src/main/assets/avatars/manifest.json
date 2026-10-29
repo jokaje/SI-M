@@ -1,0 +1,114 @@
+{
+  "characters": {
+    "celestial_owl": {
+      "file": "celestial_owl.rgb565",
+      "frame_sha256": [
+        "4eef15e03dfc72f3695f8a18cc05d082192aee236026d90d1831102307685d0b",
+        "a28e6d1af0d106e0d29a9dce5612185196ca29edf3a0ea7a64325009555719dc",
+        "a1a6920af203aa93f0098895215ffce82f4954419401bef4b663ea322400d529",
+        "ab4a3700d7e84294d7614105c3673c98377d35dda6442d96b8c622f983642704",
+        "303a3423c6705e31401321b0fd174468259d5e8ae29cf181986bf3ef3938ec25",
+        "07a6ddc7875224e3b31b6b1935ade4290e106ab58d7cd6df61f539ef55644f86",
+        "5734b99fde77e7bdd138d6b2cfcc0db4732ddbd061099637db68eafbe355b415",
+        "e2bca91f5721c0799d9e22cb40450025bf212624f9e7a9b093134c64d1c63aa1",
+        "0c6670876f4fb2061da8c46714955803b7edd8d172a68b2bd51c9272c7f6053e",
+        "2f56cfd4e974dfdeb7dcddc1d72b43965d9b15b79552df3145e0e842a5f41070",
+        "c28252d755bd94a731bccf9e7c63451d7602ad3f6f2009a91e8b0902fbab75c6",
+        "50d614efc2175d0d9aae36358eb5982aaf67e3faebfb3a0ed811bec82526a9ed"
+      ],
+      "sha256": "37cdc2ed7da13dadd27b8a18057db4969dd9683752c7dea7ee03c43b9a200762"
+    },
+    "crystal_dragon": {
+      "file": "crystal_dragon.rgb565",
+      "frame_sha256": [
+        "ae4dde719ba1793af2642acc22f49f08511649f4511682835b705df2361d04b3",
+        "47b04fa342a6d9db36d92543a0917ecbeaebc927287c9ae63655266e0f932ab2",
+        "c32a4fb5f02b297231443db443c420cacfd94897e3aec9bb55b6c175596fa923",
+        "29b0b336c81a3cd3ba721faeff4558e4a4843e87430614ab69528045e1c0738a",
+        "62824a1f2c2ac7c52f3128d58e9e5bfc14cdf9f3f4d987f0da1e6fa195faa40b",
+        "a8374c869fa9722fe2da55f9f0fcc02bff34df5ce6bcec676a4157f2f0b2d5d8",
+        "a76baddb073a6e68c35a72c1e7a065da63d61b05637efd09b1b6c5a2b1e61ce1",
+        "3118babca9e912d6eb5669c984acf178764f86080ced4d9ed84a59e7f926ae9f",
+        "cd88484482058405905bb4f211824dd99219bdf727d601abae5570d7378a64f8",
+        "0ab18f089ccfdd20079ab2aa8a917e7f28e316bdf685a2fdeca626851578bf06",
+        "4e1623d3814779e4b1f4bb1fcf53985c8da458355b6127b600b228b1b74668a5",
+        "a859492db7bd86ad7bfaaa5f3bfdcddb5388f6dfbfc1307234a3f1aefedaf420"
+      ],
+      "sha256": "d152de1a0e8bbeb75d567b48280ad5726841b3d2ef0eda26b65395ede38e9ef5"
+    },
+    "flame": {
+      "file": "flame.rgb565",
+      "frame_sha256": [
+        "b2db14ca85c7150cc3faa8202f8029e56b34e6e28878901f46e5ca313f8e0aa7",
+        "2ce7731ad9588efa0add5c63abb7e36b031dea592a4edc090e17d93198485e3d",
+        "ab9a496fc0e1d072888104856164633c26bb78f8d3d12cfa78bcbd48ebd3e4dd",
+        "42d33151d0ecab2a9bab926df884b9b95d305fdc548d3e4435d51302ecfda3ff",
+        "feb151f0e944bbbd43704bedebede5b7971519448ce75bc31da39178b8c8db63",
+        "09344dd4040fa8ce2c05a10f6848be76ddf36be757edef6d6a62f859b8b9ccfd",
+        "49957f57ba693ce9cd2049b33be5d5166cd027782a996060242775210cba497f",
+        "f80ea9a39b0bd83fda2898abe7c5ead91a70a946e93464ab6782aa7aa4bf3091",
+        "9f5859444d9d910dae52a94563c75123559c90de56affc52f4730e952ade4da8",
+        "fad2b2afd0563ba2860009caadaac9dbd52bc7560d8fbf784e02012c17e2f87e",
+        "5504478eb87caf97ae52e063f4ec2d5bdad5f575ce3100a1e7152b46812bde0a",
+        "5d3f62cacaef6cbdf18645afd4f884bad0e54f2253d57d8ab8c1a4f0857ea581"
+      ],
+      "sha256": "15bebeb3486d3bab271f44efdbfb9ef925171f00c15b5e3e6441eaba1bd15c77"
+    },
+    "fox_spirit": {
+      "file": "fox_spirit.rgb565",
+      "frame_sha256": [
+        "79ab599ac45b09b5dc3e547121f08fededbb09a8f15fe85b40bef0ec075bc409",
+        "941f22a0f8c5d2ec4ebf0536871dc4a761c2d7c39da43d182df21a0c492094fc",
+        "e3ea8f0be9ed06d14213e4ee900d7e700b7448cb7dce306c3d8480516f65add7",
+        "3bf167bc186e5b29b8a24a2ca8d5add7078c94754de73ba3a39de19f9ed47129",
+        "b35c057da89ea41e6e3c5584c669d39d89f5ab5276a6f9e5ddd71d2d5bf2e62e",
+        "c71d3f86627a0f1d7f108ec39ae4880709f0457c9cc83c95707f5f282e7ce3af",
+        "58a8d3e25ca9712dbd56428c91e280ec65820cd7e1adaff56a74eeee0212004d",
+        "ad09363b96665c0566e23703b18b874f01c4c8774df46f75ac5af33e6bf901d2",
+        "2e091e5b811609ebad7b1a38bd8fcd9a726559de09a1c37227a6aea51c1e8842",
+        "6b98e8e81e99aaa42e6ac39ba79391f4e443e1b7dbc2806ae803a2bd2c2db388",
+        "10b6b7860750a6725cf26e1aa79105c247f34a3f98a9b7c93cc405fc694b5217",
+        "07d6e54cbbe9beb206f5bd802a354de5a0f41e7a9a9b627dff5f61f59e51e5c0"
+      ],
+      "sha256": "fc8c484b58efcda98883d3ca1feb017c1fe55e5be0542e0f9437d3737d82461f"
+    },
+    "starlight_axolotl": {
+      "file": "starlight_axolotl.rgb565",
+      "frame_sha256": [
+        "0b039c1df909a5fcd8048000ae62c071c2aa0a364dbba09cec5aa6aad1057935",
+        "cb192925f5bbe0eadb632dcb67fae659a9dba2259180b7647ce1c72e3e55b06b",
+        "653c98ad5c86d82d61b66230c2c97d0dc46317de1dc6c4267e1e9c897a279e84",
+        "ce50e991599c13b128f14f77264230e98570dbc11bcb2e2fe8f69ed3f185b5f4",
+        "f1478b058c6a4c44554b81556c1564e699be65f80c121b74595103a50d99dae0",
+        "3593dbb684243346ed330643421bd6a8c98e9dc0aa04a24394d9719879ff2c85",
+        "817e78130c89aed0e4c7527958b845da2109f975387a266c824aef6592eef3ab",
+        "4a45f9f71b990d37f4506cc1f394bb9942a499483b79690c457d7fed7f586032",
+        "91e77ede27af0db2cd6094243112fa7307abbc09f4fcd2d57f9d7b321b540c41",
+        "f0acd7af5f0294ae2cea20c18f2e06e293f4a8df31280376087b628d5707bd00",
+        "2411e4ccccfe2fc0298529807771cc7f747c7ec99cd593c379c93d00964f6301",
+        "f2b9104b0a476ebd085de92b61260350462c76f563e00a5cec8bb1a004926dd0"
+      ],
+      "sha256": "f1a0342000d1d634829457387b7eb05580ccc46c8d432f99d24f9ab0407154d6"
+    }
+  },
+  "driver_sha256": "8cd530fa0c58027b7af4cbaba163777b9ce1155cafe19d60d354ce3ddeb71dc1",
+  "format": "RGB565LE",
+  "frames_per_mode": 4,
+  "height": 64,
+  "modes": [
+    "idle",
+    "listening",
+    "speaking"
+  ],
+  "source": "external accepted firmware C sources (supply --accepted-root)",
+  "source_sha256": {
+    "esp32/components/muse/avatar/muse_pixel_axolotl.c": "de632c4eea41c764374e9a4a91bfd8c4baf7f2193931f666382e7fd7f2a203c0",
+    "esp32/components/muse/avatar/muse_pixel_dragon.c": "145bbf5bbbaf711e254a6f7d716055e1a7f48ffd680dbb38cd68429d65f0f6ac",
+    "esp32/components/muse/avatar/muse_pixel_flame.c": "7f3ebc566bf31c5fe1b4f7253d9a6db07b66c5cbdff92888d22279027c0e3b12",
+    "esp32/components/muse/avatar/muse_pixel_fox.c": "b0cac5c2563f09c1ddd85e04d795571b1f7a81570a44abae841e3f1ce569e001",
+    "esp32/components/muse/avatar/muse_pixel_owl.c": "b2e16298b0ccb0bba49820e7dc177d94f2e7412ed9558606190016e515ae10d3",
+    "esp32/components/muse/avatar/orb_render_scratch.c": "3301a643190ca7b66f21841a679c98700042607b8a97010c8b9bde470ca44ba9",
+    "esp32/components/muse/orb_character.c": "a759a5f0a59fd9ccac3901c477971b5c14880d78b7862aba65ad0ea9cfa33e2b"
+  },
+  "width": 64
+}

@@ -2,5 +2,5 @@
     <string name="app_name">SI-M</string>
     <string name="app_subtitle">Super Intelligence Mobile</string>
     <string name="connecting_orb">Orb verbinden</string>
-    <string name="camera_permission_rationale">SI-M benötigt Zugriff auf die Kamera, um das Handy als visuelles Auge für den Orb zu verwenden.</string>
+    <string name="camera_permission_rationale">SI-M zeigt die Kameravorschau ausschließlich lokal auf diesem Gerät an. Es werden keine Bilder an den Orb gesendet.</string>
 </resources>

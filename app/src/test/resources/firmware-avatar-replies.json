@@ -1,0 +1,15 @@
+{
+  "provenance": {
+    "ble_sha256": "4e027fa724bd450cfa03a3d8a013d74b1ab121f68c63db53b7140ba2c220176d",
+    "harness_sha256": "93bdc432436edc4304f46f5f064cd018841dd9bf485a0fd79d6b548644b65bdc",
+    "parser_sha256": "080ac9b49cda602c21d5c26a2d658222a4d949fe8f8f87e5069ff7c5bdd3eeec"
+  },
+  "replies": {
+    "caps": "{\"v\":1,\"id\":31,\"state\":\"done\",\"avatar_caps\":{\"v\":1,\"slots\":1,\"dna_bytes\":48,\"renderer\":1},\"ok\":true}",
+    "character": "{\"v\":1,\"id\":35,\"state\":\"done\",\"selected\":\"custom\"}",
+    "delete": "{\"v\":1,\"id\":36,\"state\":\"done\",\"ok\":true}",
+    "empty": "{\"v\":1,\"id\":37,\"state\":\"done\",\"avatar\":{\"v\":1,\"present\":false,\"dna\":\"\"},\"ok\":true}",
+    "get": "{\"v\":1,\"id\":34,\"state\":\"done\",\"avatar\":{\"v\":1,\"present\":true,\"dna\":\"415644317b00000005030000000300029c4dccf8e8ff60ffdfffcf40ff68b8a649b6cfcf000000000000000034579a11\"},\"ok\":true}",
+    "set": "{\"v\":1,\"id\":33,\"state\":\"done\",\"character_id\":\"custom\",\"ok\":true}"
+  }
+}

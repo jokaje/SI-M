@@ -3,7 +3,6 @@ package com.example
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.model.CreatureDna
-import com.example.model.HiddenIntelligence
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -13,7 +12,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [35])
 class ExampleRobolectricTest {
 
     @Test
@@ -29,7 +28,7 @@ class ExampleRobolectricTest {
         assertNotNull(creature.name)
         assertTrue(creature.ears in 0..7)
         assertTrue(creature.crown in 0..4)
-        assertNotNull(creature.hiddenIntelligence.personalityProfile)
-        assertNotNull(creature.hiddenIntelligence.speechStyle)
+        assertNotNull(creature.profile.personalityProfile)
+        assertNotNull(creature.profile.speechStyle)
     }
 }

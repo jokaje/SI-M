@@ -25,7 +25,7 @@ data class CreaturePalette(
     val blush: String
 )
 
-data class HiddenIntelligence(
+data class CharacterProfile(
     val personalityProfile: String,
     val speechStyle: String,
     val cognitiveDepth: String,
@@ -34,7 +34,7 @@ data class HiddenIntelligence(
     val internalSystemDirective: String
 ) {
     companion object {
-        fun generateRandom(): HiddenIntelligence {
+        fun generateRandom(): CharacterProfile {
             val personalities = listOf(
                 "Scharfsinnig, empathisch und proaktiv unterstützend",
                 "Spielerisch, intuitiv mit philosophischer Neigung",
@@ -62,7 +62,7 @@ data class HiddenIntelligence(
             val curiosity = Random.nextInt(75, 100)
             val warmth = 0.7f + Random.nextFloat() * 0.28f
 
-            return HiddenIntelligence(
+            return CharacterProfile(
                 personalityProfile = p,
                 speechStyle = s,
                 cognitiveDepth = d,
@@ -97,7 +97,7 @@ data class CreatureDna(
     val neckPinch: Float = 0.16f,
     val bellyBulge: Float = 0.12f,
     val emotion: CreatureEmotion = CreatureEmotion.IDLE,
-    val hiddenIntelligence: HiddenIntelligence = HiddenIntelligence.generateRandom()
+    val profile: CharacterProfile = CharacterProfile.generateRandom()
 ) {
     fun parseColor(hex: String, fallback: Color = Color.Cyan): Color {
         return try {
@@ -161,7 +161,7 @@ data class CreatureDna(
                 headWiden = 0.08f + Random.nextFloat() * 0.16f,
                 neckPinch = 0.08f + Random.nextFloat() * 0.16f,
                 bellyBulge = 0.06f + Random.nextFloat() * 0.14f,
-                hiddenIntelligence = HiddenIntelligence.generateRandom()
+                profile = CharacterProfile.generateRandom()
             )
         }
 

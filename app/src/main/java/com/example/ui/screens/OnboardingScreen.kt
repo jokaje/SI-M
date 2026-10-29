@@ -1,12 +1,7 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,42 +17,27 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Casino
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ElectricBolt
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,146 +45,470 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.model.AgentConfig
-import com.example.model.AgentType
 import com.example.model.CreatureDna
-import com.example.model.CreatureEmotion
-import com.example.model.InternetConfig
-import com.example.model.InternetConnectionType
-import com.example.ui.components.MuseAvatarView
+import com.example.orb.AgentProtocol
+import com.example.orb.SetupState
+import com.example.orb.WifiPresentation
+import com.example.ui.theme.simOutlinedTextFieldColors
 import com.example.ui.theme.CyanPrimary
 import com.example.ui.theme.IndigoAccent
-import com.example.ui.theme.OrbWarningAmber
+import com.example.ui.components.SimpleAvatarChooser
+import com.example.model.AvatarFavorite
+import com.example.ui.theme.MutedText
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(
-    currentStep: Int, // 1: Avatar, 2: Internet, 3: Agent, 4: Done
-    draftCharacter: CreatureDna,
-    diceRollsLeft: Int,
-    internetConfig: InternetConfig,
-    agentConfig: AgentConfig,
-    onRollDice: () -> Unit,
-    onConfirmAvatar: () -> Unit,
-    onSelectInternetMode: (InternetConnectionType, ssid: String, pass: String) -> Unit,
-    onConfirmInternet: () -> Unit,
-    onSaveAgentConfig: (type: AgentType, name: String, address: String, token: String, provider: String, apiKey: String) -> Unit,
-    onFinishToDashboard: () -> Unit,
-    onBack: () -> Unit,
+    state: SetupState,
+    avatar: CreatureDna,
+    draft: String?, avatarName: String, favorites: List<AvatarFavorite>,
+    step: Int,
+    selectedChoice: String? = null, onChoose: (String) -> Unit = {},
+    avatarBusy: Boolean = false, avatarError: String? = null,
+    onRollAvatar: () -> Unit,
+    onNameAvatar: (String) -> Unit, onTrait: (Int, Int) -> Unit, onColor: (Int, String) -> Unit,
+    onSaveFavorite: () -> Unit, onFavorite: (String) -> Unit, onDeleteFavorite: (String) -> Unit,
+    onInstall: () -> Unit, onDeleteDevice: () -> Unit,
+    onConfirmAvatar: () -> Unit, onSelectFigure: (String) -> Unit,
+    onSetStep: (Int) -> Unit,
+    onRefreshNetworks: () -> Unit,
+    onScanWifi: () -> Unit,
+    onSaveWifi: (String, String) -> Long?,
+    onForgetWifi: (String) -> Unit,
+    onReadAgent: () -> Unit,
+    onSaveAgent: (String, String) -> Long?,
+    onFinish: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BackHandler { onBack() }
+    BackHandler {
+        if (avatarBusy) return@BackHandler
+        onSetStep(com.example.viewmodel.onboardingBackStep(step))
+    }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "SI-M Orb Einrichtung",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp
-                        )
-                        Text(
-                            text = when (currentStep) {
-                                1 -> "Schritt 1 von 3: Charakter erzeugen"
-                                2 -> "Schritt 2 von 3: Internet-Verbindung"
-                                3 -> "Schritt 3 von 3: Intelligenz & Agent"
-                                else -> "Einrichtung abgeschlossen"
-                            },
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (currentStep in 2..3) {
-                        IconButton(onClick = onBack, modifier = Modifier.testTag("onboarding_back_button")) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF0F172A)
-                )
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
+            Text(
+                text = "Einrichtung",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A)
             )
-        },
-        containerColor = Color(0xFFF8FAFC),
-        modifier = modifier.testTag("onboarding_screen")
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            // Step Progress Bar
+            Text(
+                text = "Schritt $step von 4",
+                fontSize = 12.sp,
+                color = MutedText
+            )
+            Spacer(modifier = Modifier.height(10.dp))
             LinearProgressIndicator(
-                progress = {
-                    when (currentStep) {
-                        1 -> 0.33f
-                        2 -> 0.66f
-                        3 -> 1.0f
-                        else -> 1.0f
-                    }
-                },
+                progress = { step / 4f },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp),
+                    .height(7.dp)
+                    .clip(RoundedCornerShape(4.dp)),
                 color = CyanPrimary,
                 trackColor = Color(0xFFE2E8F0)
             )
+        }
 
-            AnimatedContent(
-                targetState = currentStep,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "onboardingStepAnim",
-                modifier = Modifier.weight(1f)
-            ) { step ->
-                when (step) {
-                    1 -> StepAvatarCreation(
-                        dna = draftCharacter,
-                        rollsLeft = diceRollsLeft,
-                        onRollDice = onRollDice,
-                        onConfirm = onConfirmAvatar
-                    )
-                    2 -> StepInternetSetup(
-                        config = internetConfig,
-                        onSelectMode = onSelectInternetMode,
-                        onConfirm = onConfirmInternet
-                    )
-                    3 -> StepAgentSetup(
-                        initialConfig = agentConfig,
-                        onSave = onSaveAgentConfig
-                    )
-                    else -> StepCompleted(
-                        dna = draftCharacter,
-                        onFinish = onFinishToDashboard
-                    )
-                }
-            }
+        when (step) {
+            1 -> StepAvatar(
+                state = state, draft = draft, avatarName = avatarName, favorites = favorites,
+                onRollAvatar = onRollAvatar, onNameAvatar = onNameAvatar, onTrait = onTrait,
+                onColor = onColor, onSaveFavorite = onSaveFavorite, onFavorite = onFavorite,
+                onDeleteFavorite = onDeleteFavorite, onInstall = onInstall, onDeleteDevice = onDeleteDevice,
+                onConfirmAvatar = onConfirmAvatar, onSelectFigure = onSelectFigure,
+                selectedChoice = selectedChoice, onChoose = onChoose, avatarBusy = avatarBusy, avatarError = avatarError
+            )
+            2 -> StepWifi(
+                state = state,
+                onRefreshNetworks = onRefreshNetworks,
+                onScanWifi = onScanWifi,
+                onSaveWifi = onSaveWifi,
+                onForgetWifi = onForgetWifi,
+                onContinue = { onSetStep(3) }
+            )
+            3 -> StepAgent(
+                state = state,
+                onReadAgent = onReadAgent,
+                onSaveAgent = onSaveAgent,
+                onContinue = { onSetStep(4) }
+            )
+            else -> StepDone(
+                state = state,
+                avatar = avatar,
+                onFinish = onFinish
+            )
         }
     }
 }
 
-// -------------------------------------------------------------
-// Step 1: Avatar Creation with 3x Random Roll Limit
-// -------------------------------------------------------------
 @Composable
-private fun StepAvatarCreation(
-    dna: CreatureDna,
-    rollsLeft: Int,
-    onRollDice: () -> Unit,
-    onConfirm: () -> Unit
+private fun StepAvatar(
+    state: SetupState, draft: String?, avatarName: String, favorites: List<AvatarFavorite>,
+    onRollAvatar: () -> Unit, onNameAvatar: (String) -> Unit, onTrait: (Int, Int) -> Unit,
+    onColor: (Int, String) -> Unit, onSaveFavorite: () -> Unit, onFavorite: (String) -> Unit,
+    onDeleteFavorite: (String) -> Unit, onInstall: () -> Unit, onDeleteDevice: () -> Unit,
+    onConfirmAvatar: () -> Unit, onSelectFigure: (String) -> Unit,
+    selectedChoice: String?, onChoose: (String) -> Unit, avatarBusy: Boolean, avatarError: String?
+) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+        SimpleAvatarChooser(state, draft, avatarName, onRollAvatar, onNameAvatar,
+            onSelectBuiltIn = onSelectFigure, onConfirmRandom = onInstall,
+            onContinue = onConfirmAvatar, selectedChoice = selectedChoice, onChoose = onChoose,
+            busy = avatarBusy, error = avatarError)
+    }
+}
+
+@Composable
+private fun StepWifi(
+    state: SetupState,
+    onRefreshNetworks: () -> Unit,
+    onScanWifi: () -> Unit,
+    onSaveWifi: (String, String) -> Long?,
+    onForgetWifi: (String) -> Unit,
+    onContinue: () -> Unit
+) {
+    var selectedSsid by remember { mutableStateOf<String?>(null) }
+    var password by remember { mutableStateOf("") }
+    var pendingWifi by remember { mutableStateOf<Long?>(null) }
+    var submittedWifi by remember { mutableStateOf<Pair<String, String>?>(null) }
+    LaunchedEffect(state.writeOutcome?.request) {
+        val result = state.writeOutcome
+        if (result?.kind == "wifi" && result.request == pendingWifi) {
+            if (result.confirmed && submittedWifi == Pair(selectedSsid, password)) password = ""
+            pendingWifi = null
+            submittedWifi = null
+        }
+    }
+
+    LaunchedEffect(Unit) { onRefreshNetworks() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Wifi, contentDescription = null, tint = CyanPrimary)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("WLAN auf dem Orb", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Der Orb bekommt sein Netzwerk direkt vom Gerät. Zugangsdaten werden nur über Bluetooth übertragen und nicht in der App gespeichert.",
+            fontSize = 12.sp,
+            color = MutedText,
+            lineHeight = 17.sp
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF0F172A))
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = WifiPresentation.onboarding(state),
+                    fontSize = 12.sp,
+                    color = MutedText
+                )
+                if (!state.savedNetworksKnown || state.savedNetworks.isEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(WifiPresentation.saved(state), fontSize = 12.sp, color = MutedText)
+                }
+                if (state.savedNetworksKnown && state.savedNetworks.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    state.savedNetworks.forEach { name ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(name, fontSize = 12.sp, color = Color(0xFF334155))
+                            TextButton(onClick = { onForgetWifi(name) }) {
+                                Text("Entfernen", fontSize = 11.sp, color = Color(0xFFB91C1C))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onScanWifi, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Suchen")
+            }
+            OutlinedButton(onClick = onRefreshNetworks, modifier = Modifier.weight(1f)) {
+                Text("Status lesen")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (state.scanning) {
+            Text("Der Orb sucht Netzwerke …", fontSize = 12.sp, color = CyanPrimary)
+        }
+
+        state.aps.forEach { ap ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+                    .clickable { selectedSsid = ap.ssid },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selectedSsid == ap.ssid) Color(0xFFE0F2FE) else Color.White
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (ap.secure) Icons.Default.Lock else Icons.Default.Wifi,
+                        contentDescription = null,
+                        tint = CyanPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(ap.ssid, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text("${ap.rssi} dBm", fontSize = 11.sp, color = MutedText)
+                }
+            }
+        }
+
+        if (selectedSsid != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                colors = simOutlinedTextFieldColors(),
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("WLAN-Passwort (8–63 Zeichen)") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("wifi_password_input"),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    val ssid = selectedSsid ?: return@Button
+                    val submitted = password
+                    pendingWifi = onSaveWifi(ssid, submitted)
+                    submittedWifi = Pair(ssid, submitted)
+                },
+                enabled = password.length in 8..63 && state.authorized && !state.busy,
+                colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("save_wifi_button")
+            ) {
+                Text("WLAN auf dem Orb speichern", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(state.status, fontSize = 12.sp, color = Color(0xFF475569), lineHeight = 17.sp)
+
+        Spacer(modifier = Modifier.height(18.dp))
+        Button(
+            onClick = onContinue,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+        ) {
+            Text(WifiPresentation.continueLabel(state), fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun StepAgent(
+    state: SetupState,
+    onReadAgent: () -> Unit,
+    onSaveAgent: (String, String) -> Long?,
+    onContinue: () -> Unit
+) {
+    val profile = state.agentProfile
+    var url by remember { mutableStateOf(profile?.url.orEmpty()) }
+    LaunchedEffect(profile?.url) {
+        if (url.isBlank() && profile?.url != null) url = profile.url
+    }
+    var token by remember { mutableStateOf("") }
+    var pendingAgent by remember { mutableStateOf<Long?>(null) }
+    var submittedAgent by remember { mutableStateOf<Pair<String, String>?>(null) }
+    LaunchedEffect(state.writeOutcome?.request) {
+        val result = state.writeOutcome
+        if (result?.kind == "agent" && result.request == pendingAgent) {
+            if (result.confirmed && submittedAgent == Pair(url, token)) token = ""
+            pendingAgent = null
+            submittedAgent = null
+        }
+    }
+
+    LaunchedEffect(Unit) { onReadAgent() }
+
+    val urlValid = AgentProtocol.validUrl(url)
+    val tokenValid = AgentProtocol.validToken(token)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        Text("Sprachdienst", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Der Orb spricht einen HTTPS-Dienst über die Route /v1/turn-stream an (16-kHz-PCM-Audio). " +
+                "Es muss eine eigene Bridge sein, keine beliebige Chat-Adresse.",
+            fontSize = 12.sp,
+            color = MutedText,
+            lineHeight = 17.sp
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF0F172A))
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = when {
+                        state.agentUnsupported -> "Diese Firmware unterstützt keine Sprachdienst-Konfiguration."
+                        profile == null -> "Noch nicht gelesen."
+                        profile.source == "custom" -> "Eigene Bridge auf dem Orb gespeichert."
+                        profile.source == "builtin" -> "Alter Firmware-Standard aktiv. Ein Firmware-Update ist nötig, bevor die Anbindung entfernt werden kann."
+                        profile.source == "invalid" -> "Gespeicherte Konfiguration ist ungültig."
+                        else -> "Kein Sprachdienst eingerichtet."
+                    },
+                    fontSize = 12.sp,
+                    color = MutedText
+                )
+                if (profile?.source == "custom") {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(profile.url, fontSize = 11.sp, color = Color(0xFF334155))
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(state.agentStatus, fontSize = 12.sp, color = Color(0xFF475569), lineHeight = 17.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedButton(onClick = onReadAgent, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Status vom Orb lesen")
+        }
+
+        if (!state.agentUnsupported) {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                colors = simOutlinedTextFieldColors(),
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("HTTPS-Bridge-Endpoint") },
+                placeholder = { Text("https://beispiel.de/v1/turn-stream") },
+                singleLine = true,
+                isError = url.isNotBlank() && !urlValid,
+                supportingText = {
+                    if (url.isNotBlank() && !urlValid) Text("Muss eine HTTPS-Adresse sein und auf /v1/turn-stream enden.")
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("agent_address_input"),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                colors = simOutlinedTextFieldColors(),
+                value = token,
+                onValueChange = { token = it },
+                label = { Text("Bearer-Zugangsdaten") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true,
+                isError = token.isNotBlank() && !tokenValid,
+                supportingText = {
+                    if (token.isNotBlank() && !tokenValid) Text("32–128 Zeichen, Buchstaben, Ziffern und . _ ~ + / - =")
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("agent_token_input"),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = {
+                    val submitted = Pair(url, token)
+                    pendingAgent = onSaveAgent(submitted.first, submitted.second)
+                    submittedAgent = submitted
+                },
+                enabled = urlValid && tokenValid && state.authorized && !state.busy,
+                colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("save_agent_button")
+            ) {
+                Text("Auf dem Orb speichern", fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "Speichern ist noch kein Sprachtest. Der Orb verbindet sich erst beim ersten Gespräch.",
+                fontSize = 11.sp,
+                color = MutedText
+            )
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+        Button(
+            onClick = onContinue,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+        ) {
+            Text(if (profile?.source == "custom") "Weiter" else "Ohne Sprachdienst fortfahren", fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun StepDone(
+    state: SetupState,
+    avatar: CreatureDna,
+    onFinish: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -213,662 +517,53 @@ private fun StepAvatarCreation(
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Erschaffe deinen SI-M Charakter",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Dein Orb erhält ein lebendiges 64×64 Pixel-Wesen. Du kannst den Zufalls-Generator bis zu 3x würfeln.",
-            fontSize = 13.sp,
-            color = Color(0xFF64748B),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Muse Avatar Live Component
-        MuseAvatarView(
-            dna = dna,
-            size = 230.dp,
-            showGrid = true,
-            emotion = CreatureEmotion.IDLE
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Character Name & Seed Badge
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.shadow(2.dp, RoundedCornerShape(12.dp))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = dna.name,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = Color(0xFF0F172A)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "• Seed 0x${dna.seed.toString(16).uppercase()}",
-                    fontSize = 11.sp,
-                    color = Color(0xFF64748B)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Roll Counter Badge
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = if (rollsLeft > 0) Color(0xFFEFF6FF) else Color(0xFFFEF2F2)
-            ),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (rollsLeft > 0) "🎲 Noch $rollsLeft von 3 Versuchen übrig" else "⛔ Alle 3 Würfe aufgebraucht",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (rollsLeft > 0) CyanPrimary else Color(0xFFDC2626)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // Randomize Button
-        Button(
-            onClick = onRollDice,
-            enabled = rollsLeft > 0,
-            colors = ButtonDefaults.buttonColors(containerColor = OrbWarningAmber),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .testTag("dice_random_button")
-        ) {
-            Icon(Icons.Default.Casino, contentDescription = null, tint = Color.Black)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Zufalls-Wesen würfeln", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 14.sp)
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Confirm Button
-        Button(
-            onClick = onConfirm,
-            colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .testTag("confirm_avatar_button")
-        ) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Diesen Avatar übernehmen & Weiter", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        }
-    }
-}
-
-// -------------------------------------------------------------
-// Step 2: Internet Connection Setup (Hotspot vs Manual Wi-Fi)
-// -------------------------------------------------------------
-@Composable
-private fun StepInternetSetup(
-    config: InternetConfig,
-    onSelectMode: (InternetConnectionType, String, String) -> Unit,
-    onConfirm: () -> Unit
-) {
-    var selectedType by remember { mutableStateOf(config.connectionType) }
-    var wifiSsid by remember { mutableStateOf("Heimnetz-5G") }
-    var wifiPassword by remember { mutableStateOf("supersecret") }
-    var hotspotSsid by remember { mutableStateOf("SI-M-Phone-Hotspot") }
-    var hotspotPassword by remember { mutableStateOf("orbaccess88") }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp)
-    ) {
-        Text(
-            text = "Orb mit dem Internet verbinden",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A)
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Bevor wir den Agenten oder Namen einrichten, benötigt der SI-M Orb Zugang zum Internet.",
-            fontSize = 13.sp,
-            color = Color(0xFF64748B)
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Option 1: 1-Klick Hotspot
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = if (selectedType == InternetConnectionType.HOTSPOT) 2.dp else 1.dp,
-                    color = if (selectedType == InternetConnectionType.HOTSPOT) CyanPrimary else Color(0xFFE2E8F0),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .clickable {
-                    selectedType = InternetConnectionType.HOTSPOT
-                    onSelectMode(InternetConnectionType.HOTSPOT, hotspotSsid, hotspotPassword)
-                }
-                .testTag("hotspot_option_button"),
-            colors = CardDefaults.cardColors(
-                containerColor = if (selectedType == InternetConnectionType.HOTSPOT) Color(0xFFF0F9FF) else Color.White
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = selectedType == InternetConnectionType.HOTSPOT,
-                        onClick = {
-                            selectedType = InternetConnectionType.HOTSPOT
-                            onSelectMode(InternetConnectionType.HOTSPOT, hotspotSsid, hotspotPassword)
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(CyanPrimary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.WifiTethering, contentDescription = null, tint = CyanPrimary)
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "1-Klick via Handy-Hotspot (Empfohlen)",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color(0xFF0F172A)
-                        )
-                        Text(
-                            text = "Automatische Übertragung der Hotspot-Daten an den Orb",
-                            fontSize = 11.sp,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                }
-
-                if (selectedType == InternetConnectionType.HOTSPOT) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    OutlinedTextField(
-                        value = hotspotSsid,
-                        onValueChange = {
-                            hotspotSsid = it
-                            onSelectMode(InternetConnectionType.HOTSPOT, hotspotSsid, hotspotPassword)
-                        },
-                        label = { Text("Hotspot-Name (SSID)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = hotspotPassword,
-                        onValueChange = {
-                            hotspotPassword = it
-                            onSelectMode(InternetConnectionType.HOTSPOT, hotspotSsid, hotspotPassword)
-                        },
-                        label = { Text("Hotspot-Passwort") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Option 2: Manuelles WLAN
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = if (selectedType == InternetConnectionType.MANUAL_WIFI) 2.dp else 1.dp,
-                    color = if (selectedType == InternetConnectionType.MANUAL_WIFI) CyanPrimary else Color(0xFFE2E8F0),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .clickable {
-                    selectedType = InternetConnectionType.MANUAL_WIFI
-                    onSelectMode(InternetConnectionType.MANUAL_WIFI, wifiSsid, wifiPassword)
-                }
-                .testTag("manual_wifi_option_button"),
-            colors = CardDefaults.cardColors(
-                containerColor = if (selectedType == InternetConnectionType.MANUAL_WIFI) Color(0xFFF0F9FF) else Color.White
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(
-                        selected = selectedType == InternetConnectionType.MANUAL_WIFI,
-                        onClick = {
-                            selectedType = InternetConnectionType.MANUAL_WIFI
-                            onSelectMode(InternetConnectionType.MANUAL_WIFI, wifiSsid, wifiPassword)
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF6366F1).copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Wifi, contentDescription = null, tint = IndigoAccent)
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Manuelle Eingabe eines WLAN",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color(0xFF0F172A)
-                        )
-                        Text(
-                            text = "Mit bestehendem Heimnetzwerk verbinden",
-                            fontSize = 11.sp,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                }
-
-                if (selectedType == InternetConnectionType.MANUAL_WIFI) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    OutlinedTextField(
-                        value = wifiSsid,
-                        onValueChange = {
-                            wifiSsid = it
-                            onSelectMode(InternetConnectionType.MANUAL_WIFI, wifiSsid, wifiPassword)
-                        },
-                        label = { Text("WLAN-Name (SSID)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = wifiPassword,
-                        onValueChange = {
-                            wifiPassword = it
-                            onSelectMode(InternetConnectionType.MANUAL_WIFI, wifiSsid, wifiPassword)
-                        },
-                        label = { Text("WLAN-Passwort") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Button(
-            onClick = onConfirm,
-            colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .testTag("confirm_internet_button")
-        ) {
-            Text("Verbindung übertragen & Weiter", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        }
-    }
-}
-
-// -------------------------------------------------------------
-// Step 3: Agent Connection vs Self-Configured SI-M
-// -------------------------------------------------------------
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StepAgentSetup(
-    initialConfig: AgentConfig,
-    onSave: (AgentType, String, String, String, String, String) -> Unit
-) {
-    var agentType by remember { mutableStateOf(initialConfig.agentType) }
-
-    // Existing agent inputs
-    var serverAddress by remember { mutableStateOf(initialConfig.serverAddress) }
-    var bearerToken by remember { mutableStateOf(initialConfig.bearerToken) }
-
-    // Custom configuration inputs
-    var customName by remember { mutableStateOf(initialConfig.agentName) }
-    var selectedLlm by remember { mutableStateOf("Gemini 2.5 Flash (Google AI)") }
-    var apiKey by remember { mutableStateOf(initialConfig.apiKey) }
-    var dropdownExpanded by remember { mutableStateOf(false) }
-
-    val llmOptions = listOf(
-        "Gemini 2.5 Flash (Google AI)",
-        "OpenAI (GPT-4o / GPT-4o-mini)",
-        "Anthropic Claude 3.5 Sonnet",
-        "Groq (Llama 3.3 70B)",
-        "Ollama (Lokales Netzwerk)"
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(20.dp)
-    ) {
-        Text(
-            text = "Intelligenz des Orbs konfigurieren",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A)
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Wähle, wie dein SI-M Orb denkt und antwortet.",
-            fontSize = 13.sp,
-            color = Color(0xFF64748B)
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // Type Choice Cards
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { agentType = AgentType.SELF_CONFIGURED }
-                    .border(
-                        2.dp,
-                        if (agentType == AgentType.SELF_CONFIGURED) CyanPrimary else Color(0xFFE2E8F0),
-                        RoundedCornerShape(14.dp)
-                    )
-                    .testTag("agent_type_custom"),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (agentType == AgentType.SELF_CONFIGURED) Color(0xFFF0F9FF) else Color.White
-                ),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Psychology, contentDescription = null, tint = CyanPrimary, modifier = Modifier.size(28.dp))
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("SI-M Konfigurieren", fontWeight = FontWeight.Bold, fontSize = 13.sp, textAlign = TextAlign.Center)
-                    Text("Eigener Name & LLM-API", fontSize = 10.sp, color = Color(0xFF64748B), textAlign = TextAlign.Center)
-                }
-            }
-
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { agentType = AgentType.EXISTING_AGENT }
-                    .border(
-                        2.dp,
-                        if (agentType == AgentType.EXISTING_AGENT) IndigoAccent else Color(0xFFE2E8F0),
-                        RoundedCornerShape(14.dp)
-                    )
-                    .testTag("agent_type_existing"),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (agentType == AgentType.EXISTING_AGENT) Color(0xFFEEF2FF) else Color.White
-                ),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Link, contentDescription = null, tint = IndigoAccent, modifier = Modifier.size(28.dp))
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Bestehender Agent", fontWeight = FontWeight.Bold, fontSize = 13.sp, textAlign = TextAlign.Center)
-                    Text("Hermes / OpenClaw", fontSize = 10.sp, color = Color(0xFF64748B), textAlign = TextAlign.Center)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        if (agentType == AgentType.SELF_CONFIGURED) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.shadow(2.dp, RoundedCornerShape(16.dp))
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "SI-M Persönlichkeit & Name",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF0F172A)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "ℹ️ Persönlichkeit, Sprachstil und Reaktionen werden im Hintergrund automatisch und einzigartig für deinen Orb generiert.",
-                        fontSize = 11.sp,
-                        color = Color(0xFF0284C7),
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    OutlinedTextField(
-                        value = customName,
-                        onValueChange = { customName = it },
-                        label = { Text("Name deines SI-M (z.B. Nova, Kira, Atlas)") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("custom_name_input"),
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text("LLM-Anbieter auswählen", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF475569))
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    ExposedDropdownMenuBox(
-                        expanded = dropdownExpanded,
-                        onExpandedChange = { dropdownExpanded = !dropdownExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedLlm,
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                            shape = RoundedCornerShape(10.dp)
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = dropdownExpanded,
-                            onDismissRequest = { dropdownExpanded = false }
-                        ) {
-                            llmOptions.forEach { opt ->
-                                DropdownMenuItem(
-                                    text = { Text(opt) },
-                                    onClick = {
-                                        selectedLlm = opt
-                                        dropdownExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    OutlinedTextField(
-                        value = apiKey,
-                        onValueChange = { apiKey = it },
-                        label = { Text("API-Schlüssel (Optional / Cloud-Secret)") },
-                        placeholder = { Text("sk-...") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("api_key_input"),
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
-            }
-        } else {
-            // Existing agent
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.shadow(2.dp, RoundedCornerShape(16.dp))
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Text(
-                        text = "Agenten-Endpunkt & Authentifizierung",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF0F172A)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Verbinde einen laufenden Agenten (z.B. Hermes, OpenClaw oder benutzerdefinierten Server).",
-                        fontSize = 11.sp,
-                        color = Color(0xFF64748B)
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    OutlinedTextField(
-                        value = serverAddress,
-                        onValueChange = { serverAddress = it },
-                        label = { Text("Agent Server-Adresse (URL)") },
-                        placeholder = { Text("https://agent.local:8080") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("agent_address_input"),
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = bearerToken,
-                        onValueChange = { bearerToken = it },
-                        label = { Text("Bearer Token / Autorisierungsschlüssel") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("agent_token_input"),
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Button(
-            onClick = {
-                onSave(agentType, customName, serverAddress, bearerToken, selectedLlm, apiKey)
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .testTag("save_agent_button")
-        ) {
-            Text("Konfiguration speichern & Abschließen", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        }
-    }
-}
-
-// -------------------------------------------------------------
-// Step 4: Completion Celebration Screen
-// -------------------------------------------------------------
-@Composable
-private fun StepCompleted(
-    dna: CreatureDna,
-    onFinish: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(84.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF22C55E).copy(alpha = 0.15f)),
+                .background(Color(0xFFDCFCE7)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = Color(0xFF16A34A),
-                modifier = Modifier.size(48.dp)
-            )
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(46.dp))
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Einrichtung abgeschlossen", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            "Diese Angaben hat der Orb bestätigt:",
+            fontSize = 12.sp,
+            color = MutedText
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SummaryRow("Lokales Profil (Stimme/Person unverändert)", avatar.name)
+                SummaryRow(
+                    "Figur auf dem Orb",
+                    state.companionCharacterId ?: state.selectedCharacter ?: "noch nicht abgerufen"
+                )
+                SummaryRow(
+                    "WLAN",
+                    WifiPresentation.summary(state)
+                )
+                SummaryRow(
+                    "Sprachdienst",
+                    when (state.agentProfile?.source) {
+                        "custom" -> "eigene Bridge"
+                        "builtin" -> "Firmware-Standard"
+                        "invalid" -> "ungültig"
+                        else -> "nicht eingerichtet"
+                    }
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Text(
-            text = "SI-M ist einsatzbereit!",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Dein AI Orb ist vollständig gekoppelt, mit dem Internet verbunden und mit '${dna.name}' synchronisiert.",
-            fontSize = 13.sp,
-            color = Color(0xFF64748B),
-            textAlign = TextAlign.Center,
-            lineHeight = 19.sp
-        )
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        MuseAvatarView(
-            dna = dna,
-            size = 180.dp,
-            emotion = CreatureEmotion.LOVE
-        )
-
-        Spacer(modifier = Modifier.height(36.dp))
-
+        Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = onFinish,
             colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
@@ -876,9 +571,16 @@ private fun StepCompleted(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
-                .testTag("finish_onboarding_button")
         ) {
-            Text("Zum Dashboard", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text("Zum Dashboard", fontWeight = FontWeight.Bold)
         }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, fontSize = 12.sp, color = MutedText)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
     }
 }

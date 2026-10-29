@@ -1,6 +1,6 @@
 {
   "name": "SI-M",
-  "description": "SI-M (Super Intelligence Mobile) – Companion App für das AI Orb mit Setup, 64x64 Muse Charakter-Generator, System-Steuerung und Kamera-Auge.",
+  "description": "SI-M (Super Intelligence Mobile) – Companion App für den SI-M Orb mit BLE-Einrichtung, 64x64 SI-M Charakter-Generator, System-Steuerung und lokaler Kamera-Vorschau.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

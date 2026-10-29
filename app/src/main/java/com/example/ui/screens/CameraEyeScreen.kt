@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -121,35 +122,37 @@ fun CameraEyeScreen(
             .testTag("camera_eye_screen")
     ) {
         if (hasCameraPermission) {
-            // Live CameraX Feed
-            AndroidView(
-                factory = { ctx ->
-                    val previewView = PreviewView(ctx)
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                    cameraProviderFuture.addListener({
-                        try {
-                            val cameraProvider = cameraProviderFuture.get()
-                            val preview = Preview.Builder().build().also {
-                                it.surfaceProvider = previewView.surfaceProvider
-                            }
-                            val cameraSelector = CameraSelector.Builder()
-                                .requireLensFacing(lensFacing)
-                                .build()
+            // Local CameraX preview. Rebinding on lens change keeps the switch functional.
+            key(lensFacing) {
+                AndroidView(
+                    factory = { ctx ->
+                        val previewView = PreviewView(ctx)
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                        cameraProviderFuture.addListener({
+                            try {
+                                val cameraProvider = cameraProviderFuture.get()
+                                val preview = Preview.Builder().build().also {
+                                    it.setSurfaceProvider(previewView.surfaceProvider)
+                                }
+                                val cameraSelector = CameraSelector.Builder()
+                                    .requireLensFacing(lensFacing)
+                                    .build()
 
-                            cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(
-                                lifecycleOwner,
-                                cameraSelector,
-                                preview
-                            )
-                        } catch (_: Exception) {
-                            // Fallback gracefully
-                        }
-                    }, ContextCompat.getMainExecutor(ctx))
-                    previewView
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    cameraSelector,
+                                    preview
+                                )
+                            } catch (_: Exception) {
+                                // Camera unavailable: the HUD stays visible without a feed.
+                            }
+                        }, ContextCompat.getMainExecutor(ctx))
+                        previewView
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         } else {
             // Permission request or simulated sensory HUD
             Box(
@@ -178,7 +181,7 @@ fun CameraEyeScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "SI-M nutzt deine Smartphone-Kamera als visuelles Organ, um Objekte, Räume und Gesichter für den Orb wahrzunehmen.",
+                        text = "SI-M Auge zeigt nur eine lokale Vorschau auf diesem Gerät. Es werden keine Bilder an den Orb gesendet.",
                         color = Color(0xFF94A3B8),
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center
@@ -277,7 +280,7 @@ fun CameraEyeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "SI-M AUGE • LIVE STREAM AN ORB",
+                        text = "SI-M AUGE • LOKALE VORSCHAU",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -328,7 +331,7 @@ fun CameraEyeScreen(
                             fontSize = 14.sp
                         )
                         Text(
-                            text = "Objekt-Erkennung & Visuelle Orientierung aktiv",
+                            text = "Vorschau-Modus · keine Objekterkennung",
                             fontSize = 11.sp,
                             color = Color(0xFF38BDF8)
                         )
@@ -341,7 +344,7 @@ fun CameraEyeScreen(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "1080p • 60 FPS",
+                            text = "LOKAL",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF67E8F9),
@@ -356,8 +359,8 @@ fun CameraEyeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Latenz: 14 ms (BLE + Wi-Fi Direct)", fontSize = 11.sp, color = Color(0xFF94A3B8))
-                    Text(text = "FOV: 78° Weitwinkel", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    Text(text = "Keine Verbindung zum Orb", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                    Text(text = "Bild bleibt auf diesem Gerät", fontSize = 11.sp, color = Color(0xFF94A3B8))
                 }
             }
         }

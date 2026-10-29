@@ -3,7 +3,7 @@ package com.example.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Bright & Modern Palette for SI-M (Super Intelligence Mobile)
-val CyanPrimary = Color(0xFF0284C7)         // Sky 600
+val CyanPrimary = Color(0xFF0369A1)         // Sky 700, white label contrast
 val CyanPrimaryLight = Color(0xFF38BDF8)    // Sky 400
 val IndigoAccent = Color(0xFF6366F1)        // Indigo 500
 val DeepSlate = Color(0xFF0F172A)           // Slate 900

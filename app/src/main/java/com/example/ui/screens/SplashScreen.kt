@@ -137,7 +137,7 @@ fun SplashScreen(
             )
 
             Text(
-                text = "Smart Companion für deinen AI Orb",
+                text = "Companion für deinen SI-M Orb",
                 fontSize = 14.sp,
                 color = Color(0xFF64748B),
                 modifier = Modifier.padding(top = 6.dp)

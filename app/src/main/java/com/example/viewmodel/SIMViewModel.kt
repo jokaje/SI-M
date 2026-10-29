@@ -1,24 +1,29 @@
 package com.example.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.model.AgentConfig
-import com.example.model.AgentType
+import com.example.data.AppPrefs
+import com.example.data.LocalAccountStore
 import com.example.model.CreatureDna
 import com.example.model.CreatureEmotion
-import com.example.model.HiddenIntelligence
-import com.example.model.InternetConfig
-import com.example.model.InternetConnectionType
-import com.example.model.OrbDevice
-import com.example.model.OrbSettings
-import com.example.model.ScreenTimeout
-import com.example.model.SoundProfile
-import kotlinx.coroutines.delay
+import com.example.model.AvatarDraft
+import com.example.model.AvatarFavorite
+import com.example.orb.AvatarDnaWire
+import java.security.SecureRandom
+import com.example.orb.AgentCommand
+import com.example.orb.AgentProtocol
+import com.example.orb.OrbSetupClient
+import com.example.orb.SetupCommand
+import com.example.orb.SetupState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class AppScreen {
     SPLASH,
@@ -29,360 +34,401 @@ enum class AppScreen {
     CAMERA_EYE
 }
 
+data class AuthUiState(
+    val hasAccount: Boolean = false,
+    val signedIn: Boolean = false,
+    val displayName: String = "",
+    val email: String = "",
+    val error: String? = null,
+    val busy: Boolean = false
+)
+
 data class SIMUiState(
     val currentScreen: AppScreen = AppScreen.SPLASH,
     val splashProgress: Float = 0f,
-    val splashStatus: String = "Starte SI-M Core...",
-    val isAuthenticated: Boolean = false,
-    val userEmail: String = "",
-    val pairedOrb: OrbDevice? = null,
-    val isSearchingDevices: Boolean = false,
-    val discoveredDevices: List<OrbDevice> = emptyList(),
-    val isPairingInProgress: Boolean = false,
-    // Characters
-    val characters: List<CreatureDna> = listOf(CreatureDna.defaultCreature()),
-    val activeCharacterIndex: Int = 0,
-    // Guided Onboarding after pairing
-    val onboardingStep: Int = 1, // 1: Avatar, 2: Internet, 3: Agent/Name, 4: Done
-    val draftCharacter: CreatureDna = CreatureDna.defaultCreature(),
-    val randomDiceRollsLeft: Int = 3, // strictly max 3 attempts as requested!
-    // Internet & Agent config
-    val internetConfig: InternetConfig = InternetConfig(),
-    val agentConfig: AgentConfig = AgentConfig(),
-    // Settings
-    val orbSettings: OrbSettings = OrbSettings(),
-    val activeTab: Int = 0, // 0 = Dashboard/System, 1 = Neuer Charakter (Labor, gesperrt)
+    val splashStatus: String = "Starte SI-M …",
+    val auth: AuthUiState = AuthUiState(),
+    val avatar: CreatureDna = CreatureDna.defaultCreature(),
+    val avatarDraft: String? = null, val avatarName: String = "Neues Wesen",
+    val favorites: List<AvatarFavorite> = emptyList(),
+    val onboardingStep: Int = 1,
+    val onboardingCompleted: Boolean = false,
+    val onboardingChoice: String? = null, val onboardingBusy: Boolean = false,
+    val onboardingError: String? = null,
     val statusToast: String? = null
-) {
-    val activeCharacter: CreatureDna
-        get() = characters.getOrNull(activeCharacterIndex) ?: draftCharacter
+)
+
+internal fun onboardingBackStep(step: Int): Int = (step - 1).coerceAtLeast(1)
+internal fun initialAuthenticatedRoute(completed: Boolean, connected: Boolean): AppScreen = when {
+    completed -> AppScreen.DASHBOARD
+    connected -> AppScreen.ONBOARDING
+    else -> AppScreen.PAIRING
 }
 
-class SIMViewModel : ViewModel() {
+class SIMViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val account = LocalAccountStore(application)
+    private val prefs = AppPrefs(application)
+
+    val client = (application as com.example.SIMApplication).orbClient
+    val orbState: StateFlow<SetupState> = client.state
 
     private val _uiState = MutableStateFlow(SIMUiState())
     val uiState: StateFlow<SIMUiState> = _uiState.asStateFlow()
 
+    private var onboardingAfterPairing = false
+    private var draftRevision = 0L
+    private var pendingAvatar: PendingAvatar? = null
+    private data class PendingAvatar(val request: Long, val session: Long, val revision: Long, val choice: String, val name: String)
+
     init {
+        val favorites = prefs.loadFavorites()
+        val firstDna = favorites.firstOrNull()?.dna
+        _uiState.update {
+            it.copy(
+                avatar = prefs.loadAvatar() ?: CreatureDna.defaultCreature(),
+                avatarDraft = firstDna, avatarName = favorites.firstOrNull()?.name ?: "Neues Wesen",
+                favorites = favorites,
+                onboardingCompleted = prefs.onboardingCompleted,
+                onboardingStep = if (prefs.onboardingCompleted) 1 else prefs.onboardingStep,
+                auth = it.auth.copy(
+                    hasAccount = account.hasAccount(),
+                    email = account.email(),
+                    displayName = account.displayName()
+                )
+            )
+        }
+        observePairing()
         runSplashScreen()
+    }
+
+    private fun observePairing() {
+        viewModelScope.launch {
+            client.state.collect { state ->
+                if (onboardingAfterPairing && state.connected && state.authorized) {
+                    onboardingAfterPairing = false
+                    if (prefs.onboardingCompleted) {
+                        _uiState.update { it.copy(currentScreen = AppScreen.DASHBOARD) }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                currentScreen = AppScreen.ONBOARDING,
+                                onboardingStep = prefs.onboardingStep
+                            )
+                        }
+                    }
+                }
+                val pending = pendingAvatar
+                if (pending != null) {
+                    val result = state.writeOutcome
+                    when {
+                        result != null && result.request == pending.request && result.session == pending.session -> {
+                            pendingAvatar = null
+                            if (result.confirmed && state.connected && state.authorized && state.setupOpen &&
+                                _uiState.value.onboardingStep == 1 && draftRevision == pending.revision &&
+                                _uiState.value.onboardingChoice == pending.choice && _uiState.value.avatarName == pending.name) {
+                                val named = _uiState.value.avatar.copy(name = pending.name.trim().take(32))
+                                prefs.saveAvatar(named)
+                                prefs.onboardingStep = 2
+                                _uiState.update { it.copy(avatar = named, onboardingStep = 2, onboardingBusy = false, onboardingError = null) }
+                            } else _uiState.update { it.copy(onboardingBusy = false,
+                                onboardingError = if (result.confirmed) "Auswahl geändert. Bitte erneut bestätigen." else "Orb-Auswahl nicht bestätigt. Bitte erneut versuchen.") }
+                        }
+                        !state.connected || !state.authorized || !state.setupOpen -> {
+                            pendingAvatar = null
+                            _uiState.update { it.copy(onboardingBusy = false, onboardingError = "Orb-Verbindung oder Setup-Fenster verloren. Erneut verbinden und versuchen.") }
+                        }
+                        !state.busy -> {
+                            pendingAvatar = null
+                            _uiState.update { it.copy(onboardingBusy = false, onboardingError = "Gerätebestätigung ausgeblieben. Bitte erneut versuchen.") }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun runSplashScreen() {
         viewModelScope.launch {
-            _uiState.update { it.copy(splashProgress = 0.15f, splashStatus = "Initialisiere SI-M Mobile Engine...") }
-            delay(400)
-            _uiState.update { it.copy(splashProgress = 0.45f, splashStatus = "Lade 64×64 Muse Grafik-Treiber...") }
-            delay(450)
-            _uiState.update { it.copy(splashProgress = 0.8f, splashStatus = "Prüfe Bluetooth & Orb-Konnektivität...") }
-            delay(500)
-            _uiState.update { it.copy(splashProgress = 1.0f, splashStatus = "Bereit!") }
-            delay(300)
+            _uiState.update { it.copy(splashProgress = 0.2f, splashStatus = "Lade Avatar-Engine …") }
+            delay(350)
+            _uiState.update { it.copy(splashProgress = 0.5f, splashStatus = "Prüfe lokales Profil …") }
+            delay(350)
+            _uiState.update { it.copy(splashProgress = 0.8f, splashStatus = "Bereite Orb-Verbindung vor …") }
+            delay(350)
+            _uiState.update { it.copy(splashProgress = 1f, splashStatus = "Bereit") }
+            delay(250)
+            _uiState.update { it.copy(currentScreen = AppScreen.AUTH) }
+        }
+    }
 
-            // Direct to Auth or Dashboard based on session
+    // ---------------------------------------------------------------- profile
+
+    fun authenticate(email: String, name: String, passcode: String, register: Boolean) {
+        val current = _uiState.value.auth
+        if (current.busy) return
+
+        if (!account.available) {
+            _uiState.update { it.copy(auth = it.auth.copy(error = "Lokaler Speicher ist auf diesem Gerät nicht verfügbar.")) }
+            return
+        }
+        if (passcode.length < LocalAccountStore.MIN_PASSCODE) {
+            _uiState.update {
+                it.copy(auth = it.auth.copy(error = "Das Passwort braucht mindestens ${LocalAccountStore.MIN_PASSCODE} Zeichen."))
+            }
+            return
+        }
+        if (!account.validEmail(email)) {
+            _uiState.update { it.copy(auth = it.auth.copy(error = "Bitte eine gültige E-Mail-Adresse eingeben.")) }
+            return
+        }
+        if (register && name.isBlank()) {
+            _uiState.update { it.copy(auth = it.auth.copy(error = "Bitte einen Namen eingeben.")) }
+            return
+        }
+
+        _uiState.update { it.copy(auth = it.auth.copy(busy = true, error = null)) }
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.Default) {
+                if (register) account.register(email, name, passcode) else account.verify(email, passcode)
+            }
+            if (!ok) {
+                _uiState.update {
+                    it.copy(auth = it.auth.copy(
+                        busy = false,
+                        error = if (register) {
+                            "Profil konnte nicht angelegt werden. Prüfe die Eingaben."
+                        } else {
+                            "E-Mail oder Passwort stimmen nicht."
+                        }
+                    ))
+                }
+                return@launch
+            }
             _uiState.update { state ->
                 state.copy(
-                    currentScreen = if (state.isAuthenticated) AppScreen.DASHBOARD else AppScreen.AUTH
+                    currentScreen = initialAuthenticatedRoute(prefs.onboardingCompleted, orbState.value.connected && orbState.value.authorized),
+                    auth = state.auth.copy(
+                        hasAccount = true,
+                        signedIn = true,
+                        busy = false,
+                        email = account.email(),
+                        displayName = account.displayName(),
+                        error = null
+                    )
                 )
             }
-        }
-    }
-
-    // --- Authentication ---
-    fun login(email: String, pass: String) {
-        val user = if (email.isBlank()) "pilot@si-m.internal" else email
-        _uiState.update {
-            it.copy(
-                isAuthenticated = true,
-                userEmail = user,
-                currentScreen = AppScreen.DASHBOARD,
-                statusToast = "Erfolgreich angemeldet"
-            )
-        }
-    }
-
-    fun quickGuestLogin() {
-        _uiState.update {
-            it.copy(
-                isAuthenticated = true,
-                userEmail = "guest@si-m.ai",
-                currentScreen = AppScreen.DASHBOARD,
-                statusToast = "Als Gast eingeloggt"
-            )
+            if (!prefs.onboardingCompleted) onboardingAfterPairing = true
+            reconnectTrustedIfAvailable()
         }
     }
 
     fun logout() {
+        client.stop("Verbindung getrennt.")
         _uiState.update {
             it.copy(
-                isAuthenticated = false,
                 currentScreen = AppScreen.AUTH,
-                statusToast = "Abgemeldet"
+                auth = it.auth.copy(signedIn = false, error = null, busy = false)
             )
         }
     }
 
-    // --- Pairing Mode ---
-    fun startPairingMode() {
-        _uiState.update {
-            it.copy(
-                currentScreen = AppScreen.PAIRING,
-                isSearchingDevices = true,
-                discoveredDevices = emptyList()
-            )
-        }
+    // ---------------------------------------------------------------- pairing
 
-        viewModelScope.launch {
-            delay(900)
-            val demoOrb = OrbDevice(
-                id = "orb-si-m-4092",
-                name = "SI-M Orb #4092",
-                macAddress = "E4:5F:01:8A:2B:9C",
-                isPaired = false,
-                isConnected = false,
-                batteryPercent = 91,
-                signalStrengthDbm = -44
-            )
-            val demoOrb2 = OrbDevice(
-                id = "orb-si-m-1088",
-                name = "SI-M Orb #1088 [Standby]",
-                macAddress = "DC:A6:32:41:99:12",
-                isPaired = false,
-                isConnected = false,
-                batteryPercent = 74,
-                signalStrengthDbm = -71
-            )
-            _uiState.update {
-                it.copy(
-                    isSearchingDevices = false,
-                    discoveredDevices = listOf(demoOrb, demoOrb2)
-                )
-            }
+    fun openPairing() {
+        _uiState.update { it.copy(currentScreen = AppScreen.PAIRING) }
+    }
+
+    fun startScan() = client.startScan()
+
+    fun connect(address: String) = client.connect(address)
+
+    fun confirmPhysicalPairing() {
+        onboardingAfterPairing = true
+        client.confirmPhysicalPairing()
+    }
+
+    fun leavePairing() {
+        onboardingAfterPairing = false
+        client.stop("Kopplung verlassen.")
+        _uiState.update { it.copy(currentScreen = if (prefs.onboardingCompleted) AppScreen.DASHBOARD else AppScreen.PAIRING) }
+    }
+
+    fun reconnectTrustedIfAvailable() {
+        if (client.trustedPeerAddress != null && !orbState.value.connected && !orbState.value.connecting) {
+            client.connectTrusted()
         }
     }
 
-    fun connectDevice(device: OrbDevice) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isPairingInProgress = true) }
-            delay(1200) // Simulated secure BLE handshake & credential exchange
-            val paired = device.copy(isPaired = true, isConnected = true)
-            _uiState.update {
-                it.copy(
-                    pairedOrb = paired,
-                    isPairingInProgress = false,
-                    currentScreen = AppScreen.ONBOARDING,
-                    onboardingStep = 1,
-                    draftCharacter = CreatureDna.createRandom(),
-                    randomDiceRollsLeft = 3,
-                    statusToast = "Orb erfolgreich gekoppelt!"
-                )
-            }
-        }
+    fun disconnectOrb() = client.stop("Orb getrennt.")
+
+    // ------------------------------------------------------------- onboarding
+
+    private fun newSeed(): Int = SecureRandom().nextInt().let { if (it == 0) 1 else it }
+
+    fun rollAvatar() {
+        draftRevision++
+        _uiState.update { it.copy(avatarDraft = AvatarDraft.generate(newSeed()), avatarName = "Neues Wesen",
+            statusToast = "Neuer lokaler Entwurf – unbegrenzt würfeln") }
     }
 
-    // --- Guided Onboarding Flow ---
-    fun rollRandomAvatar() {
-        val currentLeft = _uiState.value.randomDiceRollsLeft
-        if (currentLeft <= 0) {
-            _uiState.update { it.copy(statusToast = "Maximale Versuche (3x) erreicht!") }
+    fun nameAvatar(value: String) { draftRevision++; _uiState.update { it.copy(avatarName = value.take(32)) } }
+    fun chooseOnboardingAvatar(choice: String) {
+        draftRevision++
+        _uiState.update { it.copy(onboardingChoice = choice, onboardingError = null) }
+    }
+    fun confirmOnboardingAvatar() {
+        val ui = _uiState.value
+        val orb = orbState.value
+        if (ui.onboardingBusy || ui.onboardingStep != 1 || !ui.auth.signedIn) return
+        val choice = ui.onboardingChoice ?: return
+        if (ui.avatarName.isBlank() || !orb.connected || !orb.authorized || !orb.setupOpen || !orb.trusted) return
+        val command = if (choice == "random") {
+            if (!orb.avatarSupported) return
+            SetupCommand.AvatarSet(ui.avatarDraft ?: return)
+        } else SetupCommand.CharacterSet(choice)
+        val revision = draftRevision
+        _uiState.update { it.copy(onboardingBusy = true, onboardingError = null) }
+        val request = client.perform(command)
+        if (request == null) {
+            _uiState.update { it.copy(onboardingBusy = false, onboardingError = "Anfrage abgelehnt. Orb-Status prüfen und erneut versuchen.") }
             return
         }
-
-        val newDna = CreatureDna.createRandom()
-        _uiState.update {
-            it.copy(
-                draftCharacter = newDna,
-                randomDiceRollsLeft = currentLeft - 1,
-                statusToast = "Avatar gewürfelt (${currentLeft - 1} übrig)"
-            )
+        pendingAvatar = PendingAvatar(request, orbState.value.writeOutcome?.session ?: client.currentSessionGeneration(), revision, choice, ui.avatarName)
+    }
+    fun editAvatarTrait(index: Int, value: Int) {
+        _uiState.value.avatarDraft?.let { dna ->
+            runCatching { AvatarDraft.editTrait(dna, index, value) }
+                .onSuccess { edited -> _uiState.update { it.copy(avatarDraft = edited) } }
         }
     }
+    fun editAvatarColor(index: Int, value: String) {
+        _uiState.value.avatarDraft?.let { dna ->
+            runCatching { AvatarDraft.editColor(dna, index, value) }
+                .onSuccess { edited -> _uiState.update { it.copy(avatarDraft = edited) } }
+        }
+    }
+    fun saveFavorite() {
+        val current = _uiState.value
+        val dna = current.avatarDraft ?: return
+        val name = current.avatarName.trim()
+        if (name.isEmpty() || current.favorites.size >= 32) {
+            _uiState.update { it.copy(statusToast = "Name erforderlich; maximal 32 Favoriten.") }; return
+        }
+        val entries = current.favorites + AvatarDraft.favorite(name, dna)
+        runCatching { prefs.saveFavorites(entries) }.onSuccess {
+            _uiState.update { it.copy(favorites = entries, statusToast = "Lokal gespeichert – nicht auf dem Orb.") }
+        }.onFailure { _uiState.update { it.copy(statusToast = "Favorit konnte nicht gespeichert werden.") } }
+    }
+    fun selectFavorite(id: String) {
+        _uiState.value.favorites.firstOrNull { it.id == id }?.let { favorite ->
+            _uiState.update { it.copy(avatarDraft = favorite.dna, avatarName = favorite.name) }
+        }
+    }
+    fun deleteFavorite(id: String) {
+        val entries = _uiState.value.favorites.filterNot { it.id == id }
+        runCatching { prefs.saveFavorites(entries) }.onSuccess { _uiState.update { it.copy(favorites = entries) } }
+    }
+    fun installAvatar() {
+        _uiState.value.avatarDraft?.let { dna ->
+            if (orbState.value.connected && orbState.value.authorized && orbState.value.avatarSupported)
+                client.perform(SetupCommand.AvatarSet(dna))
+            else _uiState.update { it.copy(statusToast = "Transfer benötigt Orb-Verbindung, Eigentümernachweis, offenes Setup-Fenster und Avatar-Fähigkeit.") }
+        }
+    }
+    fun deleteDeviceAvatar() { client.perform(SetupCommand.AvatarDelete) }
+    fun refreshDeviceAvatar() { client.perform(SetupCommand.AvatarCaps) }
 
     fun confirmAvatar() {
-        // Move to step 2: Internet Connection
+        val named = _uiState.value.avatar.copy(name = _uiState.value.avatarName.trim().take(32))
+        prefs.saveAvatar(named)
+        _uiState.update { it.copy(avatar = named) }
+        prefs.onboardingStep = 2
         _uiState.update { it.copy(onboardingStep = 2) }
+        client.refreshManagement()
     }
 
-    fun setInternetMode(type: InternetConnectionType, ssid: String, pass: String) {
+    fun setOnboardingStep(step: Int) {
+        if (_uiState.value.onboardingBusy || (!prefs.onboardingCompleted && step > _uiState.value.onboardingStep && _uiState.value.onboardingStep == 1)) return
+        prefs.onboardingStep = step.coerceIn(1, 4)
+        _uiState.update { it.copy(onboardingStep = prefs.onboardingStep) }
+    }
+
+    fun finishOnboarding() {
+        if (_uiState.value.onboardingStep != 4) return
+        prefs.onboardingCompleted = true
+        prefs.onboardingStep = 1
+        _uiState.update { it.copy(onboardingCompleted = true, currentScreen = AppScreen.DASHBOARD) }
+    }
+
+    /** Reopens the setup flow from the dashboard without re-pairing. */
+    fun resumeOnboarding() {
         _uiState.update {
-            it.copy(
-                internetConfig = it.internetConfig.copy(
-                    connectionType = type,
-                    ssid = if (type == InternetConnectionType.HOTSPOT) "Handy-Hotspot (Aktiv)" else ssid,
-                    isConnected = true
-                )
-            )
+            it.copy(currentScreen = AppScreen.ONBOARDING, onboardingStep = 1)
         }
+        client.refreshManagement()
     }
 
-    fun confirmInternetAndProceed() {
-        // Move to step 3: Intelligence / Agent Config
-        _uiState.update { it.copy(onboardingStep = 3) }
-    }
+    // --------------------------------------------------------------- orb data
 
-    fun saveAgentConfig(
-        type: AgentType,
-        agentName: String,
-        address: String,
-        token: String,
-        llmProvider: String,
-        apiKey: String
-    ) {
-        // If self configured, generate random personality and speech style in background!
-        val hiddenIntel = if (type == AgentType.SELF_CONFIGURED) {
-            HiddenIntelligence.generateRandom()
-        } else {
-            _uiState.value.draftCharacter.hiddenIntelligence
-        }
+    fun refreshManagement() = client.refreshManagement()
 
-        val updatedCharacter = _uiState.value.draftCharacter.copy(
-            name = if (type == AgentType.SELF_CONFIGURED && agentName.isNotBlank()) agentName else _uiState.value.draftCharacter.name,
-            hiddenIntelligence = hiddenIntel
-        )
+    fun refreshSettings() = client.perform(SetupCommand.Settings)
 
-        val updatedAgentConfig = AgentConfig(
-            agentType = type,
-            agentName = if (agentName.isNotBlank()) agentName else "SI-M Core",
-            serverAddress = address,
-            bearerToken = token,
-            llmProvider = llmProvider,
-            apiKey = apiKey,
-            isConnected = true
-        )
+    fun refreshNetworks() = client.perform(SetupCommand.Networks)
 
-        val list = _uiState.value.characters.toMutableList()
-        list.add(0, updatedCharacter)
+    fun scanWifi() = client.perform(SetupCommand.Scan)
 
-        _uiState.update {
-            it.copy(
-                draftCharacter = updatedCharacter,
-                agentConfig = updatedAgentConfig,
-                characters = list,
-                activeCharacterIndex = 0,
-                onboardingStep = 4, // Completion celebration
-                statusToast = "SI-M Konfiguration abgeschlossen!"
-            )
-        }
-    }
+    fun saveWifi(ssid: String, password: String) = client.perform(SetupCommand.Save(ssid, password))
 
-    fun finishOnboardingToDashboard() {
-        _uiState.update {
-            it.copy(
-                currentScreen = AppScreen.DASHBOARD,
-                activeTab = 0
-            )
-        }
-    }
+    fun forgetWifi(ssid: String) = client.perform(SetupCommand.Forget(ssid))
 
-    // --- Dashboard & System Actions ---
-    fun setActiveCharacter(index: Int) {
-        if (index in _uiState.value.characters.indices) {
-            _uiState.update { it.copy(activeCharacterIndex = index) }
-        }
-    }
+    fun refreshCatalog() = client.perform(SetupCommand.Catalog)
+
+    fun selectFigure(id: String) = client.perform(SetupCommand.CharacterSet(id))
+
+    fun setVolume(value: Int) = client.perform(SetupCommand.Volume(value.coerceIn(10, 80)))
+
+    fun setBrightness(value: Int) = client.perform(SetupCommand.Brightness(value.coerceIn(10, 100)))
+
+    fun setSleepSeconds(value: Int) = client.perform(SetupCommand.Sleep(value))
+
+    fun readAgent() = client.performAgent(AgentCommand.Get)
+
+    fun saveAgent(url: String, token: String) = client.performAgent(AgentCommand.Set(url.trim(), token))
+
+    fun removeAgent() = client.performAgent(AgentCommand.Reset)
+
+    fun validAgentUrl(url: String): Boolean = AgentProtocol.validUrl(url)
+
+    fun validAgentToken(token: String): Boolean = AgentProtocol.validToken(token)
+
+    // ------------------------------------------------------------------ misc
 
     fun setEmotion(emotion: CreatureEmotion) {
-        val current = _uiState.value.activeCharacter
-        val updated = current.copy(emotion = emotion)
-        val list = _uiState.value.characters.toMutableList()
-        val idx = _uiState.value.activeCharacterIndex
-        if (idx in list.indices) {
-            list[idx] = updated
-            _uiState.update { it.copy(characters = list) }
-        }
-    }
-
-    fun setActiveTab(tabIndex: Int) {
-        _uiState.update { it.copy(activeTab = tabIndex) }
+        val updated = _uiState.value.avatar.copy(emotion = emotion)
+        prefs.saveAvatar(updated)
+        _uiState.update { it.copy(avatar = updated) }
     }
 
     fun openCameraEye() {
-        _uiState.update {
-            it.copy(
-                currentScreen = AppScreen.CAMERA_EYE,
-                orbSettings = it.orbSettings.copy(cameraEyeActive = true)
-            )
-        }
+        _uiState.update { it.copy(currentScreen = AppScreen.CAMERA_EYE) }
     }
 
     fun closeCameraEye() {
-        _uiState.update {
-            it.copy(
-                currentScreen = AppScreen.DASHBOARD,
-                orbSettings = it.orbSettings.copy(cameraEyeActive = false)
-            )
-        }
-    }
-
-    fun updateVolume(vol: Float) {
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(volume = vol)) }
-    }
-
-    fun updateBrightness(brightness: Float) {
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(brightness = brightness)) }
-    }
-
-    fun updateSoundProfile(profile: SoundProfile) {
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(soundProfile = profile)) }
-    }
-
-    fun updateScreenTimeout(timeout: ScreenTimeout) {
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(screenTimeout = timeout)) }
-    }
-
-    fun toggleAdaptiveBrightness() {
-        val curr = _uiState.value.orbSettings.adaptiveBrightness
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(adaptiveBrightness = !curr)) }
-    }
-
-    fun toggleWifi() {
-        val curr = _uiState.value.orbSettings.wifiEnabled
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(wifiEnabled = !curr)) }
-    }
-
-    fun toggleBluetooth() {
-        val curr = _uiState.value.orbSettings.bluetoothEnabled
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(bluetoothEnabled = !curr)) }
-    }
-
-    fun togglePixelGrid() {
-        val curr = _uiState.value.orbSettings.pixelGridHardware
-        _uiState.update { it.copy(orbSettings = it.orbSettings.copy(pixelGridHardware = !curr)) }
-    }
-
-    fun disconnectOrb() {
-        _uiState.update {
-            it.copy(
-                pairedOrb = null,
-                statusToast = "Orb getrennt"
-            )
-        }
+        _uiState.update { it.copy(currentScreen = AppScreen.DASHBOARD) }
     }
 
     fun clearToast() {
         _uiState.update { it.copy(statusToast = null) }
     }
 
-    fun navigateBack(): Boolean {
-        return when (_uiState.value.currentScreen) {
-            AppScreen.CAMERA_EYE -> {
-                closeCameraEye()
-                true
-            }
-            AppScreen.PAIRING -> {
-                _uiState.update { it.copy(currentScreen = AppScreen.DASHBOARD) }
-                true
-            }
-            AppScreen.ONBOARDING -> {
-                val step = _uiState.value.onboardingStep
-                if (step > 1) {
-                    _uiState.update { it.copy(onboardingStep = step - 1) }
-                    true
-                } else {
-                    _uiState.update { it.copy(currentScreen = AppScreen.DASHBOARD) }
-                    true
-                }
-            }
-            else -> false
-        }
+    fun onHostStarted() = client.onHostStarted()
+
+    fun onHostStopped() = client.onHostStopped()
+
+    override fun onCleared() {
+        // Application owns the connection across activity replacement.
+        super.onCleared()
     }
 }
