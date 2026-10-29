@@ -1,3 +1,5 @@
+/* SI-M runtime DNA generator adapted from the uploaded procedural Muse creator;
+ * implementation and interface modified. See THIRD_PARTY_NOTICES.md. */
 #include "orb_avatar_dna.h"
 #include <string.h>
 #include <stddef.h>

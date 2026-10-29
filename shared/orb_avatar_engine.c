@@ -1,3 +1,5 @@
+/* SI-M C11 renderer adapted from the uploaded procedural Muse creator;
+ * implementation and interface modified. See THIRD_PARTY_NOTICES.md. */
 #include "orb_avatar_engine.h"
 #include <math.h>
 #include <string.h>

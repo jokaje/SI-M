@@ -1,55 +1,39 @@
-# SI-M
+# SI-M · Super Intelligence Mobile
 
-SI-M (Super Intelligence Mobile) ist die Android-Begleit-App für den SI-M Orb.
+**Android-Begleit-App für den SI-M Orb.** Einrichtung, Gerätesteuerung und eigene animierte Figuren in einer App. Dieses Repository liefert Quellcode, **keinen fertigen APK-Download**; die kompatible Orb-Firmware ist ein separates Projekt.
+
+![Fünf Figuren, jeweils ein tatsächlicher C-gerenderter RGB565-Referenzframe](public/assets/accepted-figures.png)
+
+*Vorschau aus den mitgelieferten RGB565-Frames; kein Gerätescreenshot.*
 
 ## Funktionen
 
-- **Lokales Profil:** Anmeldung ohne Server. Das Passwort wird als
-  PBKDF2-HMAC-SHA256-Prüfsumme (210 000 Runden) in
-  Android-Keystore-verschlüsselten Preferences gespeichert.
-- **BLE-Einrichtung:** echter Scan, Kopplung mit System-Passkey, gegenseitiger
-  Besitznachweis (HMAC) und gespeicherter Owner. Keine Demo-Geräte.
-- **WLAN:** Netzwerke auf dem Orb suchen, speichern und entfernen. Der Orb
-  bestätigt jede Änderung; die App liest den Stand anschließend zurück.
-- **Gerät:** Lautstärke, Helligkeit und Ruhemodus direkt am Orb.
-- **Figuren:** Katalog vom Orb lesen und Figur auf dem Gerät wechseln.
-- **Sprachdienst:** HTTPS-Bridge für `/v1/turn-stream` inklusive
-  Bearer-Zugangsdaten auf dem Orb hinterlegen oder entfernen.
-- **Kamera-Vorschau:** lokale CameraX-Vorschau auf dem Smartphone. Es werden
-  keine Bilder an den Orb gesendet und keine Objekterkennung vorgetäuscht.
+- **Lokales Profil:** Anmeldung ohne Server mit PBKDF2-HMAC-SHA256 und Android-Keystore-verschlüsselten Preferences.
+- **Bluetooth LE:** Scan, Kopplung mit System-Passkey und gegenseitiger Besitznachweis. Schreibende Gerätebefehle erfordern ein physisch geöffnetes Setup-Fenster am Orb.
+- **Orb-Steuerung:** WLAN suchen, speichern und entfernen mit Rücklesung; Lautstärke, Helligkeit und Ruhemodus.
+- **Figuren:** Gerätekatalog und Auswahl, fünf mitgelieferte C-gerenderte Figuren (Flamme, Fuchsgeist, Kristalldrache, Himmelseule, Sternen-Axolotl). Der portable C11-Renderer unter [`shared/`](shared/) ermöglicht reproduzierbare, zufällig erzeugte Figuren und native Android-Vorschauen. Die RGB565-Dateien sind Referenzframes, keine Fotos oder Gerätescreenshots.
+- **Sprachdienst-Konfiguration:** HTTPS-Bridge für `/v1/turn-stream` einschließlich Bearer-Zugangsdaten auf dem Orb hinterlegen oder entfernen. Stimme, Persona und Erinnerungen sind getrennte Zuständigkeiten; ein öffentlicher KI-Dienst und Zugangsdaten sind nicht enthalten.
+- **Kamera:** lokale CameraX-Vorschau; keine Bildübertragung zum Orb und keine behauptete Objekterkennung.
 
-## Sicherheit
+Backups sind deaktiviert. Der App-Quellcode ersetzt keine Sicherheits- oder Funktionsprüfung auf echter Hardware.
 
-- Alle schreibenden Befehle benötigen ein am Orb physisch geöffnetes
-  Setup-Fenster. Ohne Fenster ist die Verbindung nur lesbar.
-- Der Besitznachweis läuft über einen pro Kopplung erzeugten Schlüssel; der
-  Schlüssel und die Nonces werden nie protokolliert.
-- Zugangsdaten und Passwörter erscheinen nicht in Logs oder in
-  `toString()`-Ausgaben.
-- Backups sind deaktiviert, damit verschlüsselte Profile nicht auf fremde
-  Geräte wandern.
+## Selbst bauen
 
-## Bauen
+Android Studio mit **JDK 17**, **Android SDK 35**, **Build-Tools 36.0.0**, **NDK 27.0.12077973** und **CMake 3.22.1** verwenden. Den Projektroot öffnen; `local.properties` mit dem SDK-Pfad nur lokal erzeugen. Das Android-CMake-Projekt bindet `shared/` relativ zum Projektroot ein.
 
-Voraussetzungen: JDK 17, Android SDK 35, Build-Tools 36.0.0.
-
-```powershell
-$env:JAVA_HOME='C:\Program Files\Java\jdk-17'
-.\gradlew.bat :app:assembleDebug
+```sh
+./gradlew :app:assembleDebug
+./gradlew :app:testDebugUnitTest
 ```
 
-Die APK liegt danach unter `app/build/outputs/apk/debug/app-debug.apk`.
+Unter Windows `gradlew.bat` verwenden. Die Debug-APK entsteht unter `app/build/outputs/apk/debug/app-debug.apk`. Sie trägt einen **Debug-Signaturschlüssel**, nicht automatisch das Zertifikat einer zuvor installierten App. Für ein Update ist deren bestehendes Release-Zertifikat nötig; Signing-Keys und eine veröffentlichte Release-APK sind hier nicht enthalten. Quellversion: **1.2.1 (versionCode 7)**.
 
-Tests:
+Renderer-Testanleitung: [`shared/README.md`](shared/README.md). Ein kompletter Sprachdialog erfordert separat bereitgestellte kompatible Orb-Firmware und einen eigens konfigurierten Dienst; der App-Build allein beweist keinen Gerätebetrieb.
 
-```powershell
-.\gradlew.bat :app:testDebugUnitTest
-```
+## Herkunft und Rechte
 
-## Protokoll
+Laut Ersteller hat er die fünf Figuren mit Muse-Code und Gemini entworfen; die RGB565-Frames stammen aus diesen eigenen Firmware-Renderern. Die Browser-Erstellerdatei baut auf einer prozeduralen Muse-Vorlage auf. Muse-SDK-Code steht unter **Apache-2.0**; die ursprüngliche **Jollybot-Figur ist ausdrücklich ausgenommen**. Siehe [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) und den [vollständigen Upstream-Lizenztext](THIRD_PARTY_MUSE_APACHE_2.0.txt). Diese Hinweise vergeben **keine pauschale Lizenz für eigenständige SI-M-Beiträge**; für diese wurde keine Projektlizenz festgelegt.
 
-Die BLE-UUIDs und die Proof-/Status-Marken sind mit der Orb-Firmware
-abgestimmt und bleiben unverändert. Sie sind reine Wire-Protokollwerte und
-werden in der App nicht angezeigt.
+## Stand und Grenzen
 
-Der portable C11-Renderer liegt im Projektordner `shared/`; das Android-CMake-Projekt referenziert ihn relativ zum Projektroot. `local.properties` bleibt hostlokal.
+Keine Release-APK, keine behauptete CI-Freigabe und **kein implementierter GitHub-In-App-Updater**. Probleme können über GitHub-Issues gemeldet werden; bitte dort keine Zugangsdaten, privaten Endpunkte oder personenbezogenen Logs veröffentlichen.
