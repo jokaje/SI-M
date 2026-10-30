@@ -1,9 +1,13 @@
-# SI-M 1.2.3 (versionCode 9)
+# SI-M 1.2.4 (versionCode 10)
 
-**Neu: echter Dunkelmodus und Icon-Tabs.** Die App folgt jetzt dem Android-Nachtmodus und lässt sich zusätzlich pro App umschalten (System / Hell / Dunkel) — die Wahl liegt im Tab **System → Darstellung** und bleibt gespeichert. Alle Oberflächen lesen ihre Farben aus einer gemeinsamen semantischen Palette, sodass Text, Karten, Eingabefelder und Statusfarben in beiden Modi zusammenpassen; Kontraste für Text liegen bei mindestens 4,5:1, für Akzente und Rahmen bei mindestens 3:1.
+**Neu: Ein-Klick-Netzwerkverbindung.** Im Tab **Netzwerk** gibt es einen einzigen Knopf, der den Orb verbindet, statt „Netzwerke suchen → Netz antippen → Passwort tippen“. Ablauf: Ist für das stärkste erreichbare Netz schon ein Passwort bekannt, wird es ohne Nachfrage an den Orb gesendet. Ist es unbekannt, wird es **einmal** abgefragt und danach lokal gemerkt — der nächste Tipp genügt.
 
-**Dashboard mit Symbolen statt Text:** System (Zahnrad), Figuren (Menschen), Netzwerk (Weltkugel), Sprachdienst (Flagge), App (Update). Der Name des aktiven Tabs steht weiterhin darunter, und jeder Tab trägt eine Beschreibung für Screenreader.
+**Zur Ehrlichkeit des Ablaufs:** Erfolg meldet die App erst, wenn der Orb selbst die Verbindung bestätigt. Nach dem Senden fragt die App den Orb-Status ab und meldet „Verbunden mit …“ nur bei echter Bestätigung; bleibt die Bestätigung aus, gibt es nach einer Frist eine Fehlermeldung samt Ursache. Ein abgelehntes oder nicht funktionierendes Passwort wird wieder verworfen, damit es nicht stillschweigend erneut gesendet wird.
 
-**Enthalten aus 1.2.2:** In-App-Update über GitHub Releases mit Prüfsummen-, Größen- und Signaturkontrolle vor der Installation, Apache-2.0-Lizenz für eigenständige Beiträge, gemeinsamer C11-64×64-Pixelrenderer über JNI, fünf mitgelieferte Figuren, Onboarding, BLE-Kopplung mit Besitznachweis, WLAN-/Gerätebefehle, Sprachdienst-Konfiguration und lokale Kamera-Vorschau.
+**Wo das Passwort liegt:** in Android-Keystore-gestützten verschlüsselten Einstellungen (dieselbe Technik wie das lokale Profil). Es wird ausschließlich an den gekoppelten Orb gesendet, wenn eine Verbindung aufgebaut wird. „Entfernen“ bei einem gespeicherten Netz löscht es auch lokal.
 
-**Grenzen:** Der Build trägt den Debug-Schlüssel; für Update-Fähigkeit über Installationen hinweg ist ein dauerhaftes Release-Zertifikat nötig. Physischer Orb und Firmware sind separat.
+**Weitere Verbesserungen im Netzwerk-Tab:** gefundene Netze sind nach Signalstärke sortiert („sehr gut / gut / mittel / schwach“ plus dBm statt nur Rohwert); offene Netze werden ausdrücklich als nicht speicherbar gekennzeichnet, weil das Provisionierungsprotokoll nur Netze mit Passwort kennt; der Fortschritt ist in jedem Schritt sichtbar (Suchen, Senden, Prüfen) und ein Fehlversuch lässt sich direkt zurücksetzen.
+
+**Grenzen:** Der Ein-Klick-Ablauf braucht Orb-Verbindung und Eigentümernachweis — ohne beides wird nichts gesendet, und die App sagt das auch. Ein bereits verbundenes Netz wird nicht erneut geschrieben. Physischer Orb und Firmware sind separat; dieser Build trägt weiterhin den Debug-Schlüssel.
+
+**Enthalten aus 1.2.3:** echter Dunkelmodus (System / Hell / Dunkel) mit gemeinsamer semantischer Palette und Icon-Tabs im Dashboard.

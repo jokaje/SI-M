@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                     val orbState by viewModel.orbState.collectAsStateWithLifecycle()
+                    val quickState by viewModel.quickConnect.collectAsStateWithLifecycle()
                     val context = LocalContext.current
 
                     LaunchedEffect(uiState.statusToast) {
@@ -168,6 +169,10 @@ class MainActivity : ComponentActivity() {
                                     onScanWifi = { viewModel.scanWifi() },
                                     onSaveWifi = { ssid, pass -> viewModel.saveWifi(ssid, pass) },
                                     onForgetWifi = { ssid -> viewModel.forgetWifi(ssid) },
+                                    quick = quickState,
+                                    onQuickConnect = { viewModel.quickConnect() },
+                                    onQuickPassword = { pass -> viewModel.submitQuickPassword(pass) },
+                                    onQuickCancel = { viewModel.cancelQuickConnect() },
                                     onReadAgent = { viewModel.readAgent() },
                                     onSaveAgent = { url, token -> viewModel.saveAgent(url, token) },
                                     onRemoveAgent = { viewModel.removeAgent() },

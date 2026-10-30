@@ -35,6 +35,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -71,6 +72,9 @@ import androidx.compose.ui.unit.sp
 import com.example.data.ThemeMode
 import com.example.model.CreatureDna
 import com.example.orb.AgentProtocol
+import com.example.orb.QuickConnect
+import com.example.orb.QuickStage
+import com.example.orb.QuickState
 import com.example.orb.SetupState
 import com.example.orb.WifiPresentation
 import com.example.ui.theme.simOutlinedTextFieldColors
@@ -121,6 +125,10 @@ fun DashboardScreen(
     onScanWifi: () -> Unit,
     onSaveWifi: (String, String) -> Long?,
     onForgetWifi: (String) -> Unit,
+    quick: QuickState,
+    onQuickConnect: () -> Unit,
+    onQuickPassword: (String) -> Unit,
+    onQuickCancel: () -> Unit,
     onReadAgent: () -> Unit,
     onSaveAgent: (String, String) -> Long?,
     onRemoveAgent: () -> Unit,
@@ -276,7 +284,11 @@ fun DashboardScreen(
                     onRefreshNetworks = onRefreshNetworks,
                     onScanWifi = onScanWifi,
                     onSaveWifi = onSaveWifi,
-                    onForgetWifi = onForgetWifi
+                    onForgetWifi = onForgetWifi,
+                    quick = quick,
+                    onQuickConnect = onQuickConnect,
+                    onQuickPassword = onQuickPassword,
+                    onQuickCancel = onQuickCancel
                 )
                 3 -> AgentPanel(
                     state = state,
@@ -621,9 +633,14 @@ private fun NetworkPanel(
     onRefreshNetworks: () -> Unit,
     onScanWifi: () -> Unit,
     onSaveWifi: (String, String) -> Long?,
-    onForgetWifi: (String) -> Unit
+    onForgetWifi: (String) -> Unit,
+    quick: QuickState,
+    onQuickConnect: () -> Unit,
+    onQuickPassword: (String) -> Unit,
+    onQuickCancel: () -> Unit
 ) {
     val p = simPalette()
+    var quickPassword by remember { mutableStateOf("") }
     var selectedSsid by remember { mutableStateOf<String?>(null) }
     var password by remember { mutableStateOf("") }
     var pendingWifi by remember { mutableStateOf<Long?>(null) }
@@ -662,6 +679,95 @@ private fun NetworkPanel(
             }
         }
 
+        InfoCard("Ein-Klick-Verbindung") {
+            Text(
+                "Nimmt das stärkste Netz mit bekanntem Passwort und verbindet direkt. Ein neues Passwort " +
+                    "wird einmal abgefragt und danach nur lokal verschlüsselt gemerkt; gesendet wird es " +
+                    "ausschließlich an den gekoppelten Orb.",
+                fontSize = 11.sp,
+                color = p.muted,
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val quickBusy = quick.active
+            Button(
+                onClick = onQuickConnect,
+                enabled = state.authorized && !state.busy && !quickBusy && quick.stage != QuickStage.CONNECTED,
+                colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("quick_connect_button")
+            ) {
+                if (quickBusy) {
+                    CircularProgressIndicator(
+                        color = p.onAccent,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(16.dp)
+                    )
+                } else {
+                    Icon(
+                        if (quick.stage == QuickStage.CONNECTED) Icons.Default.CheckCircle else Icons.Default.Wifi,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(WifiPresentation.quickTitle(quick), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            if (quick.stage == QuickStage.ASK_PASSWORD) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    "Dieses Netz ist noch nicht bekannt. Einmal eingeben — danach genügt ein Tipp.",
+                    fontSize = 11.sp,
+                    color = p.body,
+                    lineHeight = 16.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    colors = simOutlinedTextFieldColors(),
+                    value = quickPassword,
+                    onValueChange = { quickPassword = it },
+                    label = { Text("WLAN-Passwort (8–63 Zeichen)") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quick_password_field")
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = {
+                        val submitted = quickPassword
+                        onQuickPassword(submitted)
+                        quickPassword = ""
+                    },
+                    enabled = quickPassword.length in 8..63 && state.authorized && !state.busy,
+                    colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quick_password_submit")
+                ) { Text("Verbinden und merken") }
+            }
+
+            WifiPresentation.quickDetail(quick)?.let { detail ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    detail,
+                    fontSize = 11.sp,
+                    color = if (quick.stage == QuickStage.FAILED) p.warning else p.body,
+                    lineHeight = 16.sp
+                )
+            }
+
+            if (quick.stage == QuickStage.FAILED || quick.stage == QuickStage.CONNECTED) {
+                TextButton(onClick = onQuickCancel, modifier = Modifier.testTag("quick_reset_button")) {
+                    Text(if (quick.stage == QuickStage.CONNECTED) "Zurücksetzen" else "Erneut versuchen", fontSize = 12.sp)
+                }
+            }
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = onScanWifi, enabled = state.authorized && !state.busy, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -674,8 +780,8 @@ private fun NetworkPanel(
         }
 
         if (state.aps.isNotEmpty()) {
-            InfoCard("Gefundene Netzwerke (max. 4)") {
-                state.aps.forEach { ap ->
+            InfoCard("Gefundene Netzwerke (max. 4) · stärkstes zuerst") {
+                state.aps.sortedByDescending { it.rssi }.forEach { ap ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -693,8 +799,15 @@ private fun NetworkPanel(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(ap.ssid, fontSize = 13.sp, color = p.ink, modifier = Modifier.weight(1f))
-                        Text("${ap.rssi} dBm", fontSize = 11.sp, color = p.muted)
+                        Text("${WifiPresentation.strength(ap.rssi)} · ${ap.rssi} dBm", fontSize = 11.sp, color = p.muted)
                     }
+                }
+                if (state.aps.none { it.secure }) {
+                    Text(
+                        "Nur offene Netze sichtbar — die kann der Orb nicht speichern.",
+                        fontSize = 11.sp,
+                        color = p.warning
+                    )
                 }
             }
         }
@@ -709,6 +822,13 @@ private fun NetworkPanel(
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Nach Bestätigung durch den Orb wird das Passwort lokal für die Ein-Klick-Verbindung gemerkt.",
+                    fontSize = 11.sp,
+                    color = p.muted,
+                    lineHeight = 16.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(

@@ -14,8 +14,15 @@ import java.security.SecureRandom
 import com.example.orb.AgentCommand
 import com.example.orb.AgentProtocol
 import com.example.orb.OrbSetupClient
+import com.example.orb.QuickConnect
+import com.example.orb.QuickPlan
+import com.example.orb.QuickStage
+import com.example.orb.QuickState
 import com.example.orb.SetupCommand
 import com.example.orb.SetupState
+import com.example.data.WifiCredentialStore
+import com.example.data.WifiSecrets
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,12 +76,19 @@ class SIMViewModel(application: Application) : AndroidViewModel(application) {
 
     private val account = LocalAccountStore(application)
     private val prefs = AppPrefs(application)
+    private val wifiSecrets: WifiSecrets = WifiCredentialStore(application)
 
     val client = (application as com.example.SIMApplication).orbClient
     val orbState: StateFlow<SetupState> = client.state
 
     private val _uiState = MutableStateFlow(SIMUiState())
     val uiState: StateFlow<SIMUiState> = _uiState.asStateFlow()
+
+    private val _quickConnect = MutableStateFlow(QuickConnect.idle)
+    val quickConnect: StateFlow<QuickState> = _quickConnect.asStateFlow()
+    private var quickJob: Job? = null
+    private var quickRequest: Long? = null
+    private var quickSsid: String? = null
 
     private var onboardingAfterPairing = false
     private var draftRevision = 0L
@@ -144,8 +158,169 @@ class SIMViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 }
+                observeQuickWrite(state)
+                observeManualWifiWrite(state)
             }
         }
+    }
+
+    // ------------------------------------------------------- one-tap networking
+
+    private var manualWifi: Triple<Long, String, String>? = null
+
+    /** Onboarding/dashboard password entry: keep it if the orb confirms, drop it if not. */
+    private fun observeManualWifiWrite(state: SetupState) {
+        val pending = manualWifi ?: return
+        val outcome = state.writeOutcome ?: return
+        if (outcome.kind != "wifi" || outcome.request != pending.first) return
+        manualWifi = null
+        if (outcome.confirmed) wifiSecrets.remember(pending.second, pending.third)
+        else wifiSecrets.forget(pending.second)
+    }
+
+    /** Confirmation of the provisioning write belongs to the flow that sent it. */
+    private fun observeQuickWrite(state: SetupState) {
+        val request = quickRequest ?: return
+        val outcome = state.writeOutcome ?: return
+        if (outcome.kind != "wifi" || outcome.request != request) return
+        quickRequest = null
+        val next = QuickConnect.afterSave(_quickConnect.value, outcome.confirmed)
+        _quickConnect.value = next
+        val ssid = next.target ?: quickSsid
+        when (next.stage) {
+            QuickStage.VERIFYING -> if (ssid != null) startQuickVerification(ssid) else failQuick(ssid)
+            QuickStage.FAILED -> {
+                ssid?.let(wifiSecrets::forget)
+                quickSsid = null
+            }
+            else -> Unit
+        }
+    }
+
+    /**
+     * One tap: use the strongest network whose password is already known here, otherwise ask
+     * once. The orb's own reply is the only thing that counts as success.
+     */
+    fun quickConnect() {
+        val orb = orbState.value
+        if (!orb.connected || !orb.authorized) {
+            _quickConnect.value = QuickState(QuickStage.FAILED, detail = QuickConnect.DETAIL_ORB_NOT_READY)
+            return
+        }
+        if (orb.busy || _quickConnect.value.active) return
+        applyQuickPlan(orb)
+    }
+
+    private fun applyQuickPlan(orb: SetupState) {
+        val plan = QuickConnect.plan(
+            aps = orb.aps,
+            knownPasswords = wifiSecrets.all(),
+            orbReady = orb.connected && orb.authorized,
+            orbConnected = orb.wifiConnected,
+            currentNetwork = orb.currentNetwork
+        )
+        when (plan) {
+            is QuickPlan.Connect -> sendQuickSave(plan.ssid, plan.password)
+            is QuickPlan.AskPassword -> _quickConnect.value = QuickConnect.forPlan(plan)
+            is QuickPlan.Already -> _quickConnect.value = QuickConnect.forPlan(plan)
+            QuickPlan.NoSecureNetwork -> _quickConnect.value = QuickConnect.forPlan(plan)
+            QuickPlan.Unavailable -> _quickConnect.value = QuickConnect.forPlan(plan)
+            QuickPlan.Scan -> {
+                _quickConnect.value = QuickConnect.forPlan(QuickPlan.Scan)
+                if (client.perform(SetupCommand.Scan) == null) {
+                    _quickConnect.value = QuickState(QuickStage.FAILED, detail = QuickConnect.DETAIL_ORB_NOT_READY)
+                    return
+                }
+                startQuickScanLookup()
+            }
+        }
+    }
+
+    /** Password typed once for an already chosen network. */
+    fun submitQuickPassword(password: String) {
+        val ssid = _quickConnect.value.target ?: return
+        if (!com.example.orb.WifiPasswordPolicy.validPassword(password)) return
+        _quickConnect.value = QuickConnect.passwordReady(_quickConnect.value, password)
+        sendQuickSave(ssid, password)
+    }
+
+    private fun sendQuickSave(ssid: String, password: String) {
+        val request = client.perform(SetupCommand.Save(ssid, password))
+        if (request == null) {
+            _quickConnect.value = QuickState(QuickStage.FAILED, ssid, QuickConnect.DETAIL_SAVE_REJECTED)
+            return
+        }
+        quickRequest = request
+        quickSsid = ssid
+        // Remember now so the next tap works; a failed verification forgets it again.
+        wifiSecrets.remember(ssid, password)
+        _quickConnect.value = QuickState(QuickStage.SENDING, ssid)
+    }
+
+    fun cancelQuickConnect() {
+        quickJob?.cancel(); quickJob = null
+        quickRequest = null
+        quickSsid = null
+        _quickConnect.value = QuickConnect.cancel()
+    }
+
+    private fun startQuickScanLookup() {
+        quickJob?.cancel()
+        quickJob = viewModelScope.launch {
+            var waited = 0L
+            while (waited < QUICK_SCAN_TIMEOUT_MS) {
+                delay(QUICK_POLL_MS); waited += QUICK_POLL_MS
+                val orb = orbState.value
+                if (orb.aps.isNotEmpty() && !orb.busy) {
+                    if (_quickConnect.value.stage == QuickStage.SCANNING) applyQuickPlan(orb)
+                    return@launch
+                }
+                if (!orb.busy && orb.aps.isEmpty() && waited >= QUICK_POLL_MS * 2L &&
+                    _quickConnect.value.stage == QuickStage.SCANNING) {
+                    _quickConnect.value = QuickState(QuickStage.FAILED, detail = QuickConnect.DETAIL_NO_NETWORKS)
+                    return@launch
+                }
+            }
+            if (_quickConnect.value.stage == QuickStage.SCANNING) {
+                _quickConnect.value = QuickState(QuickStage.FAILED, detail = QuickConnect.DETAIL_NO_NETWORKS)
+            }
+        }
+    }
+
+    private suspend fun pollUntilVerified(ssid: String): Boolean {
+        var waited = 0L
+        while (waited < QUICK_VERIFY_TIMEOUT_MS) {
+            delay(QUICK_POLL_MS); waited += QUICK_POLL_MS
+            val orb = orbState.value
+            val next = QuickConnect.afterVerify(_quickConnect.value, orb.wifiStatusKnown, orb.wifiConnected, orb.currentNetwork)
+            if (next.stage == QuickStage.CONNECTED) {
+                _quickConnect.value = next.copy(target = ssid)
+                return true
+            }
+            if (orb.authorized && !orb.busy) client.perform(SetupCommand.Networks)
+        }
+        return false
+    }
+
+    private fun startQuickVerification(ssid: String) {
+        quickJob?.cancel()
+        client.perform(SetupCommand.Networks)
+        quickJob = viewModelScope.launch {
+            if (pollUntilVerified(ssid)) { quickSsid = null; return@launch }
+            val timedOut = QuickConnect.timeout(_quickConnect.value)
+            _quickConnect.value = timedOut
+            if (timedOut.stage == QuickStage.FAILED) {
+                // A remembered password that did not work must not be resent silently.
+                wifiSecrets.forget(ssid)
+                quickSsid = null
+            }
+        }
+    }
+
+    private fun failQuick(ssid: String?) {
+        quickJob?.cancel(); quickJob = null
+        ssid?.let(wifiSecrets::forget)
+        _quickConnect.value = QuickState(QuickStage.FAILED, ssid, QuickConnect.DETAIL_SAVE_REJECTED)
     }
 
     private fun runSplashScreen() {
@@ -379,9 +554,16 @@ class SIMViewModel(application: Application) : AndroidViewModel(application) {
 
     fun scanWifi() = client.perform(SetupCommand.Scan)
 
-    fun saveWifi(ssid: String, password: String) = client.perform(SetupCommand.Save(ssid, password))
+    fun saveWifi(ssid: String, password: String): Long? {
+        val request = client.perform(SetupCommand.Save(ssid, password)) ?: return null
+        manualWifi = Triple(request, ssid, password)
+        return request
+    }
 
-    fun forgetWifi(ssid: String) = client.perform(SetupCommand.Forget(ssid))
+    fun forgetWifi(ssid: String): Long? {
+        wifiSecrets.forget(ssid)
+        return client.perform(SetupCommand.Forget(ssid))
+    }
 
     fun refreshCatalog() = client.perform(SetupCommand.Catalog)
 
@@ -430,5 +612,12 @@ class SIMViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         // Application owns the connection across activity replacement.
         super.onCleared()
+    }
+
+    private companion object {
+        /** Fast enough to feel immediate, slow enough not to flood the BLE session. */
+        const val QUICK_POLL_MS = 1_500L
+        const val QUICK_SCAN_TIMEOUT_MS = 18_000L
+        const val QUICK_VERIFY_TIMEOUT_MS = 24_000L
     }
 }
