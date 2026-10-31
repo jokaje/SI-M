@@ -1,4 +1,6 @@
-# SI-M 1.2.4 (versionCode 10)
+# SI-M 1.2.5 (versionCode 11)
+
+**Sprachwahl:** Deutsch/English wird lokal persistent gewählt, im Onboarding vor der Kopplung und unter System angeboten. Eine gemeinsame Auswahl steuert App und Orb-Oberfläche. BLE-Vertrag: `language_get` liefert nur `language: "de"|"en"`; `language_set` akzeptiert genau einen dieser Werte, bestätigt zunächst nur den Schreibvorgang, danach muss ein unabhängiger `language_get` denselben Wert ergeben. Version 1, unbekannte Felder und Mischoperationen werden abgewiesen. Der Orb speichert `ui_lang` in NVS; fehlender oder ungültiger Eintrag ergibt Deutsch. Kein Eingriff in Agent, STT oder TTS. Die Anzeige bleibt bei fehlender Gerätebestätigung ausstehend; ältere Firmware unterstützt diesen optionalen Befehl nicht. Die gerenderte DE/EN-App und der authentisierte BLE-Readback am physischen Gerät benötigen noch Handabnahme.
 
 **Neu: Ein-Klick-Netzwerkverbindung.** Im Tab **Netzwerk** gibt es einen einzigen Knopf, der den Orb verbindet, statt „Netzwerke suchen → Netz antippen → Passwort tippen“. Ablauf: Ist für das stärkste erreichbare Netz schon ein Passwort bekannt, wird es ohne Nachfrage an den Orb gesendet. Ist es unbekannt, wird es **einmal** abgefragt und danach lokal gemerkt — der nächste Tipp genügt.
 

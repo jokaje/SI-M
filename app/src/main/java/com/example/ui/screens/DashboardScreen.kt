@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.example.ui.tr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +74,7 @@ import com.example.data.ThemeMode
 import com.example.model.CreatureDna
 import com.example.orb.AgentProtocol
 import com.example.orb.QuickConnect
+import com.example.orb.WifiPasswordPolicy
 import com.example.orb.QuickStage
 import com.example.orb.QuickState
 import com.example.orb.SetupState
@@ -103,6 +105,7 @@ private val DashTabs = listOf(
 @Composable
 fun DashboardScreen(
     state: SetupState,
+    uiLanguage: String, onUiLanguage: (String) -> Unit, onRetryLanguage: () -> Unit,
     avatar: CreatureDna,
     draft: String?, avatarName: String, favorites: List<AvatarFavorite>,
     onRollAvatar: () -> Unit, onNameAvatar: (String) -> Unit, onTrait: (Int, Int) -> Unit,
@@ -148,12 +151,12 @@ fun DashboardScreen(
                 title = {
                     Column {
                         Text("SI-M", fontWeight = FontWeight.Bold)
-                        Text(displayName.ifBlank { "Lokales Profil" }, fontSize = 11.sp, color = p.muted)
+                        Text(displayName.ifBlank { tr("Lokales Profil") }, fontSize = 11.sp, color = p.muted)
                     }
                 },
                 actions = {
                     IconButton(onClick = onLogout, modifier = Modifier.testTag("logout_button")) {
-                        Icon(Icons.Default.Logout, contentDescription = "Abmelden")
+                        Icon(Icons.Default.Logout, contentDescription = tr("Abmelden"))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -196,12 +199,12 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Die Einrichtung ist noch nicht abgeschlossen.",
+                            tr("Die Einrichtung ist noch nicht abgeschlossen."),
                             fontSize = 12.sp,
                             color = p.infoInk,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(onClick = onStartOnboarding) { Text("Fortsetzen", color = p.accent) }
+                        TextButton(onClick = onStartOnboarding) { Text(tr("Fortsetzen"), color = p.accent) }
                     }
                 }
             }
@@ -232,7 +235,7 @@ fun DashboardScreen(
                         icon = {
                             Icon(
                                 item.icon,
-                                contentDescription = item.label,
+                                contentDescription = tr(item.label),
                                 modifier = Modifier.size(24.dp),
                                 tint = if (tab == index) p.accent else p.muted
                             )
@@ -243,7 +246,7 @@ fun DashboardScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = DashTabs[tab].label,
+                text = tr(DashTabs[tab].label),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = p.muted
@@ -260,6 +263,7 @@ fun DashboardScreen(
                     onVolume = onVolume,
                     onBrightness = onBrightness,
                     onSleep = onSleep,
+                    uiLanguage = uiLanguage, onUiLanguage = onUiLanguage, onRetryLanguage = onRetryLanguage,
                     themeMode = themeMode,
                     onThemeMode = onThemeMode
                 )
@@ -267,9 +271,9 @@ fun DashboardScreen(
                     var expert by remember { mutableStateOf(false) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(selected = !expert, onClick = { expert = false },
-                            label = { Text("Einfach") }, modifier = Modifier.testTag("simple_tab"))
+                            label = { Text(tr("Einfach")) }, modifier = Modifier.testTag("simple_tab"))
                         FilterChip(selected = expert, onClick = { expert = true },
-                            label = { Text("Experte") }, modifier = Modifier.testTag("expert_tab"))
+                            label = { Text(tr("Experte")) }, modifier = Modifier.testTag("expert_tab"))
                     }
                     if (expert) {
                         FiguresPanel(state = state, onRefreshCatalog = onRefreshCatalog, onSelectFigure = onSelectFigure)
@@ -332,14 +336,14 @@ private fun DeviceHeader(
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(if (confirmedId != null) "Orb-Figur: $confirmedId${if (state.connected && state.trusted) " · verifiziert" else " · zuletzt bestätigt"}" else "Lokaler Entwurf · nicht auf Gerät bestätigt", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = p.ink)
+                    Text(if (confirmedId != null) com.example.ui.trTemplate("orbCharacter", confirmedId, com.example.ui.trTemplate(if (state.connected && state.trusted) "verified" else "lastConfirmed")) else tr("Lokaler Entwurf · nicht auf Gerät bestätigt"), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = p.ink)
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = when {
-                            state.connecting -> "Verbindung wird aufgebaut …"
-                            state.connected && state.authorized -> "Verbunden · Setup-Fenster offen"
-                            state.connected -> "Verbunden · nur lesbar"
-                            else -> "Nicht verbunden"
+                            state.connecting -> tr("Verbindung wird aufgebaut …")
+                            state.connected && state.authorized -> tr("Verbunden · Setup-Fenster offen")
+                            state.connected -> tr("Verbunden · nur lesbar")
+                            else -> tr("Nicht verbunden")
                         },
                         fontSize = 12.sp,
                         color = if (state.connected) p.success else p.muted,
@@ -347,12 +351,12 @@ private fun DeviceHeader(
                     )
                     if (state.connected) {
                         Text(
-                            state.companionCharacterId?.let { "Figur: $it" } ?: "Figur: nicht gelesen",
+                            state.companionCharacterId?.let { com.example.ui.trTemplate("character", it) } ?: tr("Figur: nicht gelesen"),
                             fontSize = 11.sp,
                             color = p.muted
                         )
                         if (state.companionMode != null) {
-                            Text("Modus: ${state.companionMode}", fontSize = 11.sp, color = p.muted)
+                            Text(com.example.ui.trTemplate("mode", state.companionMode), fontSize = 11.sp, color = p.muted)
                         }
                     }
                 }
@@ -370,18 +374,18 @@ private fun DeviceHeader(
                     ) {
                         Icon(Icons.Default.Bluetooth, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Orb verbinden")
+                        Text(tr("Orb verbinden"))
                     }
                     if (trustedAddress != null) {
                         OutlinedButton(onClick = onReconnect, shape = RoundedCornerShape(10.dp)) {
-                            Text("Erneut")
+                            Text(tr("Erneut"))
                         }
                     }
                 }
                 if (trustedAddress != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Bekannter Orb: $trustedAddress. Verifizierte Verbindung ist auch bei geschlossenem Setup-Fenster nur lesbar möglich. Für Änderungen am Orb physisches Setup öffnen.",
+                        com.example.ui.trTemplate("knownOrb", trustedAddress),
                         fontSize = 11.sp,
                         color = p.muted
                     )
@@ -391,10 +395,10 @@ private fun DeviceHeader(
                     OutlinedButton(onClick = onOpenCamera, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kamera")
+                        Text(tr("Kamera"))
                     }
                     OutlinedButton(onClick = onDisconnect, shape = RoundedCornerShape(10.dp), modifier = Modifier.weight(1f)) {
-                        Text("Trennen")
+                        Text(tr("Trennen"))
                     }
                 }
             }
@@ -402,7 +406,7 @@ private fun DeviceHeader(
             if (!state.authorized && state.connected) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Am Orb das physische Kopplungsfenster starten. Ohne offenes Fenster sind keine Änderungen möglich.",
+                    tr("Am Orb das physische Kopplungsfenster starten. Ohne offenes Fenster sind keine Änderungen möglich."),
                     fontSize = 11.sp,
                     color = p.warning,
                     lineHeight = 16.sp
@@ -410,7 +414,7 @@ private fun DeviceHeader(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(state.status, fontSize = 11.sp, color = p.body, lineHeight = 16.sp)
+            Text(tr(state.status), fontSize = 11.sp, color = p.body, lineHeight = 16.sp)
         }
     }
 }
@@ -424,6 +428,7 @@ private fun SystemPanel(
     onVolume: (Int) -> Unit,
     onBrightness: (Int) -> Unit,
     onSleep: (Int) -> Unit,
+    uiLanguage: String, onUiLanguage: (String) -> Unit, onRetryLanguage: () -> Unit,
     themeMode: ThemeMode,
     onThemeMode: (ThemeMode) -> Unit
 ) {
@@ -437,33 +442,46 @@ private fun SystemPanel(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        InfoCard("Gerät") {
-            InfoRow("Setup-Fenster", if (state.setupOpen) "offen" else "geschlossen")
-            InfoRow("Besitz bestätigt", if (state.trusted) "ja" else "nein")
-            InfoRow("Sicherheitsdienst", if (state.companionSupported) "verfügbar" else "nicht vorhanden")
-            InfoRow("Letzter Abruf", if (settings == null) "ausstehend" else "erfolgreich")
+        InfoCard(tr("Gerät")) {
+            InfoRow(tr("Setup-Fenster"), if (state.setupOpen) tr("offen") else tr("geschlossen"))
+            InfoRow(tr("Besitz bestätigt"), if (state.trusted) tr("ja") else tr("nein"))
+            InfoRow(tr("Sicherheitsdienst"), if (state.companionSupported) tr("verfügbar") else tr("nicht vorhanden"))
+            InfoRow(tr("Letzter Abruf"), if (settings == null) tr("ausstehend") else tr("erfolgreich"))
             if (state.managementError != null) {
-                Text(state.managementError, fontSize = 11.sp, color = p.warning)
+                Text(tr(state.managementError), fontSize = 11.sp, color = p.warning)
             }
         }
 
-        InfoCard("Darstellung") {
+        InfoCard(if (uiLanguage == "de") tr("Sprache") else "Language") {
+            Row {
+                Button(onClick = { onUiLanguage("de") }) { Text("Deutsch") }
+                Button(onClick = { onUiLanguage("en") }) { Text("English") }
+            }
+            Text(when {
+                state.languageUnsupported -> tr("Orb-Firmware unterstützt keine Sprachwahl")
+                state.languageError != null -> tr(state.languageError)
+                state.deviceLanguage == uiLanguage -> tr("Orb bestätigt")
+                else -> tr("Orb-Synchronisierung ausstehend")
+            }, color = p.body)
+            if (state.languageError != null) Button(onClick = onRetryLanguage) { Text(tr("Erneut versuchen")) }
+        }
+        InfoCard(tr("Darstellung")) {
             Text(
-                "Hell, dunkel oder wie das System. Die Auswahl gilt für die ganze App.",
+                tr("Hell, dunkel oder wie das System. Die Auswahl gilt für die ganze App."),
                 fontSize = 11.sp,
                 color = p.muted,
                 lineHeight = 16.sp
             )
             Spacer(modifier = Modifier.height(2.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                ThemeChip("System", Icons.Default.SettingsBrightness, ThemeMode.SYSTEM, themeMode, onThemeMode, "theme_system")
-                ThemeChip("Hell", Icons.Default.LightMode, ThemeMode.LIGHT, themeMode, onThemeMode, "theme_light")
-                ThemeChip("Dunkel", Icons.Default.DarkMode, ThemeMode.DARK, themeMode, onThemeMode, "theme_dark")
+                ThemeChip(tr("System"), Icons.Default.SettingsBrightness, ThemeMode.SYSTEM, themeMode, onThemeMode, "theme_system")
+                ThemeChip(tr("Hell"), Icons.Default.LightMode, ThemeMode.LIGHT, themeMode, onThemeMode, "theme_light")
+                ThemeChip(tr("Dunkel"), Icons.Default.DarkMode, ThemeMode.DARK, themeMode, onThemeMode, "theme_dark")
             }
         }
 
-        InfoCard("Anzeige & Ton") {
-            Text("Lautstärke (Vorschau beim Ziehen): ${if (settings == null) "nicht gelesen" else "${volume.roundToInt()} %"}", fontSize = 12.sp, color = p.body)
+        InfoCard(tr("Anzeige & Ton")) {
+            Text(com.example.ui.trTemplate("volume", if (settings == null) tr("nicht gelesen") else "${volume.roundToInt()} %"), fontSize = 12.sp, color = p.body)
             Slider(
                 value = volume,
                 onValueChange = { volume = it },
@@ -474,7 +492,7 @@ private fun SystemPanel(
                 valueRange = 10f..80f,
                 enabled = state.authorized && settings != null && !state.busy
             )
-            Text("Helligkeit (Vorschau beim Ziehen): ${if (settings == null) "nicht gelesen" else "${brightness.roundToInt()} %"}", fontSize = 12.sp, color = p.body)
+            Text(com.example.ui.trTemplate("brightness", if (settings == null) tr("nicht gelesen") else "${brightness.roundToInt()} %"), fontSize = 12.sp, color = p.body)
             Slider(
                 value = brightness,
                 onValueChange = { brightness = it },
@@ -486,9 +504,9 @@ private fun SystemPanel(
                 enabled = state.authorized && settings != null && !state.busy
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Ruhemodus nach", fontSize = 12.sp, color = p.body)
+            Text(tr("Ruhemodus nach"), fontSize = 12.sp, color = p.body)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(0 to "Aus", 30 to "30 s", 120 to "2 min", 600 to "10 min").forEach { (sec, label) ->
+                listOf(0 to tr("Aus"), 30 to "30 s", 120 to "2 min", 600 to "10 min").forEach { (sec, label) ->
                     FilterChip(
                         selected = settings?.sleepSeconds == sec,
                         onClick = { onSleep(sec) },
@@ -502,13 +520,13 @@ private fun SystemPanel(
                 onClick = onRefreshSettings,
                 enabled = state.authorized && !state.busy,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Einstellungen vom Orb lesen") }
+            ) { Text(tr("Einstellungen vom Orb lesen")) }
         }
 
-        InfoCard("Profil (unverändert)") {
-            InfoRow("Persönlichkeit", avatar.profile.personalityProfile)
-            InfoRow("Sprachstil", avatar.profile.speechStyle)
-            Text("Das visuelle Pixelwesen kann separat auf den Orb übertragen werden; dieses Profil bleibt lokal unverändert.", fontSize = 11.sp, color = p.muted)
+        InfoCard(tr("Profil (unverändert)")) {
+            InfoRow(tr("Persönlichkeit"), avatar.profile.personalityProfile)
+            InfoRow(tr("Sprachstil"), avatar.profile.speechStyle)
+            Text(tr("Das visuelle Pixelwesen kann separat auf den Orb übertragen werden; dieses Profil bleibt lokal unverändert."), fontSize = 11.sp, color = p.muted)
         }
 
         OutlinedButton(
@@ -518,7 +536,7 @@ private fun SystemPanel(
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Alles neu vom Orb lesen")
+            Text(tr("Alles neu vom Orb lesen"))
         }
     }
 }
@@ -562,9 +580,9 @@ private fun FiguresPanel(
 ) {
     val p = simPalette()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        InfoCard("Figuren auf dem Orb") {
+        InfoCard(tr("Figuren auf dem Orb")) {
             if (state.characters.isEmpty()) {
-                Text("Vorschau der fünf eingebauten Figuren · Geräteauswahl erst nach Katalogabruf", fontSize = 11.sp, color = p.muted)
+                Text(tr("Vorschau der fünf eingebauten Figuren · Geräteauswahl erst nach Katalogabruf"), fontSize = 11.sp, color = p.muted)
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     AcceptedAvatarFrames.ids.sorted().forEach { id ->
                         AcceptedAvatarPixelView(id, 44.dp, modifier = Modifier.weight(1f))
@@ -573,12 +591,12 @@ private fun FiguresPanel(
             }
             when {
                 state.catalogUnsupported -> Text(
-                    "Diese Firmware meldet keinen Figurenkatalog. WLAN und Einstellungen bleiben nutzbar.",
+                    tr("Diese Firmware meldet keinen Figurenkatalog. WLAN und Einstellungen bleiben nutzbar."),
                     fontSize = 12.sp,
                     color = p.warning
                 )
                 state.characters.isEmpty() -> Text(
-                    "Noch keine Figuren gelesen.",
+                    tr("Noch keine Figuren gelesen."),
                     fontSize = 12.sp,
                     color = p.muted
                 )
@@ -600,15 +618,15 @@ private fun FiguresPanel(
                             Text(figure.id, fontSize = 11.sp, color = p.muted)
                         }
                         if (figure.id == state.selectedCharacter) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "ausgewählt", tint = p.success)
+                            Icon(Icons.Default.CheckCircle, contentDescription = tr("ausgewählt"), tint = p.success)
                         } else {
-                            Text("Auswählen", fontSize = 12.sp, color = p.accent, fontWeight = FontWeight.SemiBold)
+                            Text(tr("Auswählen"), fontSize = 12.sp, color = p.accent, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(state.characterStatus, fontSize = 11.sp, color = p.body)
+            Text(tr(state.characterStatus), fontSize = 11.sp, color = p.body)
         }
 
         Button(
@@ -617,10 +635,10 @@ private fun FiguresPanel(
             colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Katalog vom Orb lesen")
+            Text(tr("Katalog vom Orb lesen"))
         }
         Text(
-            "Die Auswahl wird direkt auf dem Orb gespeichert und anschließend zurückgelesen.",
+            tr("Die Auswahl wird direkt auf dem Orb gespeichert und anschließend zurückgelesen."),
             fontSize = 11.sp,
             color = p.muted
         )
@@ -654,16 +672,19 @@ private fun NetworkPanel(
         }
     }
 
+    LaunchedEffect(quick.stage) {
+        if (quick.stage == QuickStage.CONNECTED) quickPassword = ""
+    }
     LaunchedEffect(Unit) { onRefreshNetworks() }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        InfoCard("Verbindung") {
-            InfoRow("Aktuell", WifiPresentation.current(state))
-            InfoRow("Status", WifiPresentation.connection(state))
+        InfoCard(tr("Verbindung")) {
+            InfoRow(tr("Aktuell"), com.example.ui.wifiCurrent(state))
+            InfoRow(tr("Status"), tr(WifiPresentation.connection(state)))
             if (!state.savedNetworksKnown || state.savedNetworks.isEmpty())
-                Text(WifiPresentation.saved(state), fontSize = 12.sp, color = p.muted)
+                Text(com.example.ui.wifiSaved(state), fontSize = 12.sp, color = p.muted)
             if (state.savedNetworksKnown && state.savedNetworks.isNotEmpty()) {
-                Text("Gespeichert", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.body)
+                Text(tr("Gespeichert"), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.body)
                 state.savedNetworks.forEach { name ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -672,18 +693,18 @@ private fun NetworkPanel(
                     ) {
                         Text(name, fontSize = 12.sp, color = p.body)
                         TextButton(onClick = { onForgetWifi(name) }, enabled = state.authorized && !state.busy) {
-                            Text("Entfernen", fontSize = 11.sp, color = p.danger)
+                            Text(tr("Entfernen"), fontSize = 11.sp, color = p.danger)
                         }
                     }
                 }
             }
         }
 
-        InfoCard("Ein-Klick-Verbindung") {
+        InfoCard(tr("Ein-Klick-Verbindung")) {
             Text(
-                "Nimmt das stärkste Netz mit bekanntem Passwort und verbindet direkt. Ein neues Passwort " +
-                    "wird einmal abgefragt und danach nur lokal verschlüsselt gemerkt; gesendet wird es " +
-                    "ausschließlich an den gekoppelten Orb.",
+                tr("Nimmt das stärkste Netz mit bekanntem Passwort und verbindet direkt. Ein neues Passwort ") +
+                    tr("wird einmal abgefragt und danach nur lokal verschlüsselt gemerkt; gesendet wird es ") +
+                    tr("ausschließlich an den gekoppelten Orb."),
                 fontSize = 11.sp,
                 color = p.muted,
                 lineHeight = 16.sp
@@ -713,13 +734,13 @@ private fun NetworkPanel(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(WifiPresentation.quickTitle(quick), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Text(com.example.ui.quickTitle(quick), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
 
             if (quick.stage == QuickStage.ASK_PASSWORD) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    "Dieses Netz ist noch nicht bekannt. Einmal eingeben — danach genügt ein Tipp.",
+                    tr("Dieses Netz ist noch nicht bekannt. Einmal eingeben — danach genügt ein Tipp."),
                     fontSize = 11.sp,
                     color = p.body,
                     lineHeight = 16.sp
@@ -729,7 +750,7 @@ private fun NetworkPanel(
                     colors = simOutlinedTextFieldColors(),
                     value = quickPassword,
                     onValueChange = { quickPassword = it },
-                    label = { Text("WLAN-Passwort (8–63 Zeichen)") },
+                    label = { Text(tr("WLAN-Passwort (8–63 Zeichen)")) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier
@@ -741,20 +762,19 @@ private fun NetworkPanel(
                     onClick = {
                         val submitted = quickPassword
                         onQuickPassword(submitted)
-                        quickPassword = ""
                     },
-                    enabled = quickPassword.length in 8..63 && state.authorized && !state.busy,
+                    enabled = WifiPasswordPolicy.validPassword(quickPassword) && state.authorized && !state.busy,
                     colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("quick_password_submit")
-                ) { Text("Verbinden und merken") }
+                ) { Text(tr("Verbinden und merken")) }
             }
 
             WifiPresentation.quickDetail(quick)?.let { detail ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    detail,
+                    tr(detail),
                     fontSize = 11.sp,
                     color = if (quick.stage == QuickStage.FAILED) p.warning else p.body,
                     lineHeight = 16.sp
@@ -763,7 +783,7 @@ private fun NetworkPanel(
 
             if (quick.stage == QuickStage.FAILED || quick.stage == QuickStage.CONNECTED) {
                 TextButton(onClick = onQuickCancel, modifier = Modifier.testTag("quick_reset_button")) {
-                    Text(if (quick.stage == QuickStage.CONNECTED) "Zurücksetzen" else "Erneut versuchen", fontSize = 12.sp)
+                    Text(if (quick.stage == QuickStage.CONNECTED) tr("Zurücksetzen") else tr("Erneut versuchen"), fontSize = 12.sp)
                 }
             }
         }
@@ -772,15 +792,15 @@ private fun NetworkPanel(
             OutlinedButton(onClick = onScanWifi, enabled = state.authorized && !state.busy, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Wifi, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Netzwerke suchen")
+                Text(tr("Netzwerke suchen"))
             }
             OutlinedButton(onClick = onRefreshNetworks, enabled = state.authorized && !state.busy, modifier = Modifier.weight(1f)) {
-                Text("Status lesen")
+                Text(tr("Status lesen"))
             }
         }
 
         if (state.aps.isNotEmpty()) {
-            InfoCard("Gefundene Netzwerke (max. 4) · stärkstes zuerst") {
+            InfoCard(tr("Gefundene Netzwerke (max. 4) · stärkstes zuerst")) {
                 state.aps.sortedByDescending { it.rssi }.forEach { ap ->
                     Row(
                         modifier = Modifier
@@ -799,12 +819,12 @@ private fun NetworkPanel(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(ap.ssid, fontSize = 13.sp, color = p.ink, modifier = Modifier.weight(1f))
-                        Text("${WifiPresentation.strength(ap.rssi)} · ${ap.rssi} dBm", fontSize = 11.sp, color = p.muted)
+                        Text("${tr(WifiPresentation.strength(ap.rssi))} · ${ap.rssi} dBm", fontSize = 11.sp, color = p.muted)
                     }
                 }
                 if (state.aps.none { it.secure }) {
                     Text(
-                        "Nur offene Netze sichtbar — die kann der Orb nicht speichern.",
+                        tr("Nur offene Netze sichtbar — die kann der Orb nicht speichern."),
                         fontSize = 11.sp,
                         color = p.warning
                     )
@@ -813,19 +833,19 @@ private fun NetworkPanel(
         }
 
         if (selectedSsid != null) {
-            InfoCard("Netzwerk speichern") {
+            InfoCard(tr("Netzwerk speichern")) {
                 OutlinedTextField(
                     colors = simOutlinedTextFieldColors(),
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("WLAN-Passwort (8–63 Zeichen)") },
+                    label = { Text(tr("WLAN-Passwort (8–63 Zeichen)")) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Nach Bestätigung durch den Orb wird das Passwort lokal für die Ein-Klick-Verbindung gemerkt.",
+                    tr("Nach Bestätigung durch den Orb wird das Passwort lokal für die Ein-Klick-Verbindung gemerkt."),
                     fontSize = 11.sp,
                     color = p.muted,
                     lineHeight = 16.sp
@@ -841,11 +861,11 @@ private fun NetworkPanel(
                     enabled = password.length in 8..63 && state.authorized && !state.busy,
                     colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Speichern") }
+                ) { Text(tr("Speichern")) }
             }
         }
 
-        Text(state.status, fontSize = 11.sp, color = p.body)
+        Text(tr(state.status), fontSize = 11.sp, color = p.body)
     }
 }
 
@@ -877,22 +897,22 @@ private fun AgentPanel(
     LaunchedEffect(Unit) { onReadAgent() }
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        InfoCard("Sprachdienst am Orb") {
-            InfoRow("Quelle", when (profile?.source) {
-                "custom" -> "eigene Bridge"
-                "builtin" -> "Firmware-Standard"
-                "invalid" -> "ungültig"
-                "none" -> "nicht eingerichtet"
-                else -> "nicht gelesen"
+        InfoCard(tr("Sprachdienst am Orb")) {
+            InfoRow(tr("Quelle"), when (profile?.source) {
+                "custom" -> tr("eigene Bridge")
+                "builtin" -> tr("Firmware-Standard")
+                "invalid" -> tr("ungültig")
+                "none" -> tr("nicht eingerichtet")
+                else -> tr("nicht gelesen")
             })
             if (profile?.source == "custom") InfoRow("Endpoint", profile.url)
-            Text(state.agentStatus, fontSize = 11.sp, color = p.body, lineHeight = 16.sp)
+            Text(tr(state.agentStatus), fontSize = 11.sp, color = p.body, lineHeight = 16.sp)
         }
 
         if (!state.agentUnsupported) {
-            InfoCard("HTTPS-Bridge") {
+            InfoCard(tr("HTTPS-Bridge")) {
                 Text(
-                    "Nur eine Bridge für die Route /v1/turn-stream (16-kHz-PCM). Endpoint und Zugangsdaten werden gemeinsam auf dem Orb ersetzt.",
+                    tr("Nur eine Bridge für die Route /v1/turn-stream (16-kHz-PCM). Endpoint und Zugangsdaten werden gemeinsam auf dem Orb ersetzt."),
                     fontSize = 11.sp,
                     color = p.muted,
                     lineHeight = 16.sp
@@ -903,7 +923,7 @@ private fun AgentPanel(
                     value = url,
                     onValueChange = { url = it },
                     label = { Text("Endpoint") },
-                    placeholder = { Text("https://beispiel.de/v1/turn-stream") },
+                    placeholder = { Text(com.example.ui.trTemplate("endpointExample")) },
                     singleLine = true,
                     isError = url.isNotBlank() && !AgentProtocol.validUrl(url),
                     modifier = Modifier.fillMaxWidth()
@@ -913,7 +933,7 @@ private fun AgentPanel(
                     colors = simOutlinedTextFieldColors(),
                     value = token,
                     onValueChange = { token = it },
-                    label = { Text("Bearer-Zugangsdaten") },
+                    label = { Text(tr("Bearer-Zugangsdaten")) },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     isError = token.isNotBlank() && !AgentProtocol.validToken(token),
@@ -930,21 +950,21 @@ private fun AgentPanel(
                         state.authorized && !state.busy && !state.agentUnsupported,
                     colors = ButtonDefaults.buttonColors(containerColor = p.accent, contentColor = p.onAccent),
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Auf dem Orb speichern") }
+                ) { Text(tr("Auf dem Orb speichern")) }
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = onRemoveAgent,
                     enabled = state.authorized && !state.busy && profile != null &&
                         profile.source != "builtin" && profile.source != "invalid",
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Anbindung entfernen") }
+                ) { Text(tr("Anbindung entfernen")) }
             }
         }
 
         OutlinedButton(onClick = onReadAgent, enabled = state.authorized && !state.busy, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Status lesen")
+            Text(tr("Status lesen"))
         }
     }
 }
@@ -958,7 +978,7 @@ private fun InfoCard(title: String, content: @Composable () -> Unit) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = p.ink)
+            Text(tr(title), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = p.ink)
             content()
         }
     }
@@ -968,7 +988,7 @@ private fun InfoCard(title: String, content: @Composable () -> Unit) {
 private fun InfoRow(label: String, value: String) {
     val p = simPalette()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, fontSize = 12.sp, color = p.muted)
+        Text(tr(label), fontSize = 12.sp, color = p.muted)
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = p.ink)
     }
 }

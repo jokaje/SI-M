@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import com.example.ui.tr
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,8 +26,8 @@ fun SimpleAvatarChooser(
     val choice = if (onChoose != null) selectedChoice else localChoice
     fun choose(value: String) { if (onChoose != null) onChoose(value) else localChoice = value }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.testTag("simple_avatar_chooser")) {
-        Text("Figur wählen", style = MaterialTheme.typography.titleMedium)
-        Text("Wähle eine der fünf Figuren oder würfle ein neues Pixelwesen. Stimme und Erinnerungen bleiben unverändert.")
+        Text(tr("Figur wählen"), style = MaterialTheme.typography.titleMedium)
+        Text(tr("Wähle eine der fünf Figuren oder würfle ein neues Pixelwesen. Stimme und Erinnerungen bleiben unverändert."))
         AcceptedAvatarFrames.ids.sorted().forEach { id ->
             Surface(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
@@ -39,18 +40,18 @@ fun SimpleAvatarChooser(
                     AcceptedAvatarPixelView(id, 48.dp)
                     Spacer(Modifier.width(12.dp))
                     Text(id.replace('_', ' '), modifier = Modifier.weight(1f))
-                    if (choice == id) Text("Vorschau gewählt")
+                    if (choice == id) Text(tr("Vorschau gewählt"))
                 }
             }
         }
         OutlinedButton(onClick = { onRoll(); choose("random") }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("roll_avatar")) {
-            Text("Zufälliges Wesen erzeugen")
+            Text(tr("Zufälliges Wesen erzeugen"))
         }
         if (choice == "random" && draft != null) AvatarPixelView(draft, 160.dp)
-        OutlinedTextField(value = name, onValueChange = onName, label = { Text("Name (nur lokal)") },
+        OutlinedTextField(value = name, onValueChange = onName, label = { Text(tr("Name (nur lokal)")) },
             singleLine = true, modifier = Modifier.fillMaxWidth().testTag("avatar_local_name"),
             colors = com.example.ui.theme.simOutlinedTextFieldColors())
-        Text(state.selectedCharacter?.let { "Zuletzt vom Orb bestätigt: $it" } ?: "Noch keine Geräteauswahl bestätigt")
+        Text(state.selectedCharacter?.let { com.example.ui.trTemplate("confirmedCharacter", it) } ?: tr("Noch keine Geräteauswahl bestätigt"))
         val canWrite = state.connected && state.trusted && state.authorized && state.setupOpen && !state.busy
         Button(onClick = {
             if (onContinue != null) onContinue() else when (choice) {
@@ -62,11 +63,11 @@ fun SimpleAvatarChooser(
         }, enabled = choice != null && name.isNotBlank() && canWrite && !busy &&
             (choice != "random" || (draft != null && state.avatarSupported)),
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("confirm_avatar_button")) {
-            Text(if (onContinue == null) "Auswahl auf Orb bestätigen" else "Auswahl am Orb anfordern und weiter")
+            Text(if (onContinue == null) tr("Auswahl auf Orb bestätigen") else tr("Auswahl am Orb anfordern und weiter"))
         }
-        if (busy) Text("Warte auf bestätigten Orb-Readback …")
-        if (error != null) Text(error, color = MaterialTheme.colorScheme.error)
-        if (!canWrite) Text("Zum Aktivieren Orb verbinden und das physische Setup-Fenster öffnen. Die Vorschau bleibt lokal.")
-        if (choice == "random" && !state.avatarSupported) Text("Diese Firmware unterstützt keinen Transfer neuer Pixelwesen.")
+        if (busy) Text(tr("Warte auf bestätigten Orb-Readback …"))
+        if (error != null) Text(tr(error), color = MaterialTheme.colorScheme.error)
+        if (!canWrite) Text(tr("Zum Aktivieren Orb verbinden und das physische Setup-Fenster öffnen. Die Vorschau bleibt lokal."))
+        if (choice == "random" && !state.avatarSupported) Text(tr("Diese Firmware unterstützt keinen Transfer neuer Pixelwesen."))
     }
 }

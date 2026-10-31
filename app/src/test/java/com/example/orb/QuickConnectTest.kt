@@ -104,6 +104,14 @@ class QuickConnectTest {
         assertEquals(QuickStage.VERIFYING, QuickConnect.afterSave(sending, confirmed = true).stage)
     }
 
+    @Test fun `connected status without matching network is not proof`() {
+        val verifying = QuickState(QuickStage.VERIFYING, "home")
+        assertEquals(QuickStage.VERIFYING, QuickConnect.afterVerify(verifying, true, true, "").stage)
+        assertEquals(QuickStage.VERIFYING, QuickConnect.afterVerify(verifying, true, true, "other").stage)
+        assertEquals(QuickStage.VERIFYING, QuickConnect.afterVerify(QuickState(QuickStage.VERIFYING), true, true, "home").stage)
+        assertEquals(QuickStage.CONNECTED, QuickConnect.afterVerify(verifying, true, true, "home").stage)
+    }
+
     @Test fun `verification only succeeds on a confirmed orb reading`() {
         val verifying = QuickState(QuickStage.VERIFYING, "home")
         assertEquals(QuickStage.VERIFYING, QuickConnect.afterVerify(verifying, wifiKnown = false, connected = false, current = "").stage)

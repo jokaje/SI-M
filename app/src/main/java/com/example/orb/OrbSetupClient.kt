@@ -37,7 +37,8 @@ data class SetupState(
     val aps: List<AccessPoint> = emptyList(), val savedNetworks: List<String> = emptyList(),
     val currentNetwork: String = "", val wifiConnected: Boolean = false,
     val wifiStatusKnown: Boolean = false, val savedNetworksKnown: Boolean = false,
-    val settings: DeviceSettings? = null,
+    val settings: DeviceSettings? = null, val deviceLanguage: String? = null, val languageUnsupported: Boolean = false,
+    val languageGeneration: Long = 0, val languageError: String? = null,
     val characters: List<CharacterOption> = emptyList(), val selectedCharacter: String? = null,
     val catalogUnsupported: Boolean = false, val characterStatus: String = "Figuren noch nicht abgerufen.",
     val avatarSupported: Boolean = false, val avatarDna: String? = null,
@@ -185,7 +186,7 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
     private var reliableDone: CompletableDeferred<Unit>? = null
     private class GattFailure(val code: Int) : IllegalStateException("Bluetooth-GATT-Fehler ($code).")
     private class StaleBond : IllegalStateException()
-    private class FirmwareFailure(code: Int) : IllegalStateException("Orb meldet Fehler $code.")
+    private class FirmwareFailure(val code: Int) : IllegalStateException("Orb meldet Fehler $code.")
     private class ResetCapabilityUnavailable : IllegalStateException()
 
     fun permissions(): Array<String> = if (Build.VERSION.SDK_INT >= 31)
@@ -778,18 +779,23 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
         val accepted = owner && proofSession != null && proof.owned && trust.address != null && device?.let(trust::matches) == true
         val open = accepted && proof.setupOpen && foreground
         val closing = !open && session.authorized
+        val opening = open && !session.authorized
         if (closing) {
             windowEpoch++
             pendingBootstrapEpoch = null
             mark(PairingTrace.Stage.WINDOW_CLOSED)
             companionRevision++
-        } else if (open && !session.authorized) {
+        } else if (opening) {
             windowEpoch++
         }
         session.setTrustedWindow(open)
         if (!open) { commandCharacteristic = null; statusCharacteristic = null }
         _state.update { it.copy(companionSupported = true, trusted = accepted, setupOpen = proof.setupOpen,
             companionCharacterId = proof.characterId, companionMode = proof.mode, authorized = open,
+            languageGeneration = if (closing || opening) it.languageGeneration + 1 else it.languageGeneration,
+            deviceLanguage = if (closing || opening) null else it.deviceLanguage,
+            languageUnsupported = if (closing || opening) false else it.languageUnsupported,
+            languageError = if (closing || opening) null else it.languageError,
             aps = if (open) it.aps else emptyList(), savedNetworks = if (open) it.savedNetworks else emptyList(),
             currentNetwork = if (open) it.currentNetwork else "", wifiConnected = open && it.wifiConnected,
             wifiStatusKnown = open && it.wifiStatusKnown, savedNetworksKnown = open && it.savedNetworksKnown,
@@ -911,7 +917,7 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
             check(session.accepts(epoch) && session.authorized && operationWindow == windowEpoch && admissionRevision == companionRevision && foreground)
             mutationPending = command is SetupCommand.Save || command is SetupCommand.Forget ||
                 command is SetupCommand.Volume || command is SetupCommand.Brightness || command is SetupCommand.Sleep ||
-                command is SetupCommand.CharacterSet || command is SetupCommand.AvatarSet || command == SetupCommand.AvatarDelete
+                command is SetupCommand.CharacterSet || command is SetupCommand.LanguageSet || command is SetupCommand.AvatarSet || command == SetupCommand.AvatarDelete
             withTimeout(20_000) {
                 check(session.authorized && operationWindow == windowEpoch && admissionRevision == companionRevision && foreground)
                 write(payload)
@@ -1109,6 +1115,7 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
             is SetupCommand.Save -> WriteOutcome(++writeRequest, epoch, "wifi", false)
             is SetupCommand.AvatarSet -> WriteOutcome(++writeRequest, epoch, "avatar", false)
             is SetupCommand.CharacterSet -> WriteOutcome(++writeRequest, epoch, "character", false)
+            is SetupCommand.LanguageSet -> WriteOutcome(++writeRequest, epoch, "language", false)
             else -> null
         }?.also { activeWrite = it }
         commandJob = scope.launch {
@@ -1130,11 +1137,13 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
                     is SetupCommand.Save, is SetupCommand.Forget -> SetupCommand.Networks
                     is SetupCommand.Volume, is SetupCommand.Brightness, is SetupCommand.Sleep -> SetupCommand.Settings
                     is SetupCommand.CharacterSet -> SetupCommand.CharacterGet
+                    is SetupCommand.LanguageSet -> SetupCommand.LanguageGet
                     else -> null
                 }
                 if (readback != null) {
                     applyReply(readback, send(readback))
                     if (command is SetupCommand.Save) check(command.ssid in _state.value.savedNetworks) { "WLAN nicht zurückgelesen." }
+                    if (command is SetupCommand.LanguageSet) check(_state.value.deviceLanguage == command.language) { "Gerätesprache nicht bestätigt." }
                     if (command is SetupCommand.CharacterSet) check(_state.value.selectedCharacter == command.characterId) { "Figur nicht bestätigt." }
                 }
                 if (write != null) check(session.accepts(epoch) && commandWindowEpoch == windowEpoch &&
@@ -1180,6 +1189,9 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
                         it.copy(wifiStatusKnown = false, savedNetworksKnown = false,
                             managementError = "WLAN, Einstellungen oder Figuren konnten nicht vollständig gelesen werden. Erneut abrufen.",
                             status = "Orb verbunden · Setup offen, Abruf fehlgeschlagen. Erneut abrufen.")
+                    } else if ((command == SetupCommand.LanguageGet || command is SetupCommand.LanguageSet) && e is FirmwareFailure && _state.value.connected) _state.update {
+                        it.copy(languageUnsupported = languageFailureUnsupported(e.code), deviceLanguage = null,
+                            languageError = if (languageFailureUnsupported(e.code)) null else "Orb meldet Fehler ${e.code}. Sprache nicht gespeichert; erneut versuchen.")
                     } else if (command == SetupCommand.Catalog && e is FirmwareFailure && _state.value.connected) _state.update {
                         it.copy(catalogUnsupported = true, characters = emptyList(), selectedCharacter = null,
                             characterStatus = "Figurenkatalog nicht verfügbar (${e.message}). WLAN und Einstellungen bleiben nutzbar.")
@@ -1207,6 +1219,10 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
         }
         return write?.request
     }
+    fun retryLanguage() {
+        if (_state.value.connected && _state.value.authorized && !_state.value.busy && !_state.value.languageUnsupported)
+            _state.update { it.copy(languageError = null, deviceLanguage = null) }
+    }
     /** A signed opening waits for the previous job, but never retries after a failed read. */
     private fun drainPendingBootstrap() {
         val pending = pendingBootstrapEpoch ?: return
@@ -1227,12 +1243,15 @@ class OrbSetupClient(context: Context, private val trust: OrbTrustStore = Truste
         perform(SetupCommand.Networks, followSettings = true, managementRefresh = true)
     }
     private fun applyReply(command: SetupCommand, reply: SetupReply) {
+        if (command == SetupCommand.LanguageGet && reply.language != null) _state.update { it.copy(deviceLanguage = reply.language, languageUnsupported = false, languageError = null) }
         _state.update {
             when (command) {
                 SetupCommand.Scan -> it.copy(aps = checkNotNull(reply.accessPoints) { "Orb-Suchantwort unvollständig." }, status = "WLAN-Suche abgeschlossen (Firmware: bis zu vier Treffer).")
                 SetupCommand.Networks -> it.copy(savedNetworks = checkNotNull(reply.savedNetworks) { "Orb-Netzwerkantwort unvollständig." },
                     currentNetwork = checkNotNull(reply.currentNetwork), wifiConnected = checkNotNull(reply.wifiConnected),
                     wifiStatusKnown = true, savedNetworksKnown = true, status = "Gespeicherte WLAN-Namen abgerufen.")
+                SetupCommand.LanguageGet -> it
+                is SetupCommand.LanguageSet -> it
                 SetupCommand.Settings -> it.copy(settings = checkNotNull(reply.settings) { "Orb-Einstellungen unvollständig." }, status = "Geräteeinstellungen abgerufen.")
                 SetupCommand.Catalog -> it.copy(characters = checkNotNull(reply.characters), selectedCharacter = checkNotNull(reply.selected),
                     catalogUnsupported = false, characterStatus = "Installierte Figuren vom Orb abgerufen.")

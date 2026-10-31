@@ -48,10 +48,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appContext = LocalContext.current.applicationContext
             val prefs = remember(appContext) { AppPrefs(appContext) }
+            var uiLanguage by remember(appContext) { mutableStateOf(prefs.uiLanguage) }
             var themeMode by remember(appContext) { mutableStateOf(prefs.themeMode) }
             val systemDark = isSystemInDarkTheme()
 
             SIMTheme(darkTheme = themeMode.isDark(systemDark)) {
+                com.example.ui.UiLanguage.current = uiLanguage
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -61,9 +63,30 @@ class MainActivity : ComponentActivity() {
                     val quickState by viewModel.quickConnect.collectAsStateWithLifecycle()
                     val context = LocalContext.current
 
+                    // A failed write stays pending until a new language choice or authorization generation.
+                    var attemptedLanguage by remember { mutableStateOf<Pair<Long, String>?>(null) }
+                    var attemptedRead by remember { mutableStateOf<Long?>(null) }
+                    var retryLanguage by remember { mutableStateOf(0) }
+                    LaunchedEffect(orbState.languageGeneration, orbState.connected) {
+                        attemptedLanguage = null
+                        attemptedRead = null
+                    }
+                    LaunchedEffect(uiLanguage, orbState.connected, orbState.authorized, orbState.busy,
+                        orbState.deviceLanguage, orbState.languageUnsupported, orbState.languageGeneration, retryLanguage) {
+                        if (orbState.connected && orbState.authorized && !orbState.busy && !orbState.languageUnsupported && orbState.languageError == null) {
+                            if (orbState.deviceLanguage == null && attemptedRead != orbState.languageGeneration) {
+                                attemptedRead = orbState.languageGeneration
+                                viewModel.client.perform(com.example.orb.SetupCommand.LanguageGet)
+                            } else if (orbState.deviceLanguage != null && orbState.deviceLanguage != uiLanguage &&
+                                attemptedLanguage != (orbState.languageGeneration to uiLanguage)) {
+                                if (viewModel.client.perform(com.example.orb.SetupCommand.LanguageSet(uiLanguage)) != null)
+                                    attemptedLanguage = orbState.languageGeneration to uiLanguage
+                            }
+                        }
+                    }
                     LaunchedEffect(uiState.statusToast) {
                         uiState.statusToast?.let { msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, com.example.ui.tr(msg), Toast.LENGTH_SHORT).show()
                             viewModel.clearToast()
                         }
                     }
@@ -77,7 +100,7 @@ class MainActivity : ComponentActivity() {
                             AppScreen.SPLASH -> {
                                 SplashScreen(
                                     progress = uiState.splashProgress,
-                                    statusText = uiState.splashStatus
+                                    statusText = com.example.ui.tr(uiState.splashStatus)
                                 )
                             }
                             AppScreen.AUTH -> {
@@ -85,7 +108,7 @@ class MainActivity : ComponentActivity() {
                                     hasAccount = uiState.auth.hasAccount,
                                     initialEmail = uiState.auth.email,
                                     initialName = uiState.auth.displayName,
-                                    error = uiState.auth.error,
+                                    error = uiState.auth.error?.let { com.example.ui.tr(it) },
                                     busy = uiState.auth.busy,
                                     onAuthenticate = { email, name, passcode, register ->
                                         viewModel.authenticate(email, name, passcode, register)
@@ -106,6 +129,8 @@ class MainActivity : ComponentActivity() {
                             AppScreen.ONBOARDING -> {
                                 OnboardingScreen(
                                     state = orbState,
+                                    uiLanguage = uiLanguage, onUiLanguage = { uiLanguage = it; prefs.uiLanguage = it },
+                                    onRetryLanguage = { viewModel.client.retryLanguage(); attemptedRead = null; attemptedLanguage = null; retryLanguage++ },
                                     avatar = uiState.avatar,
                                     draft = uiState.avatarDraft, avatarName = uiState.avatarName, favorites = uiState.favorites,
                                     step = uiState.onboardingStep,
@@ -141,6 +166,8 @@ class MainActivity : ComponentActivity() {
                             AppScreen.DASHBOARD -> {
                                 DashboardScreen(
                                     state = orbState,
+                                    uiLanguage = uiLanguage, onUiLanguage = { uiLanguage = it; prefs.uiLanguage = it },
+                                    onRetryLanguage = { viewModel.client.retryLanguage(); attemptedRead = null; attemptedLanguage = null; retryLanguage++ },
                                     avatar = uiState.avatar,
                                     draft = uiState.avatarDraft, avatarName = uiState.avatarName, favorites = uiState.favorites,
                                     onRollAvatar = { viewModel.rollAvatar() },

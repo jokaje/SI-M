@@ -8,6 +8,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SetupProtocolTest {
+    @Test fun `language wire contract and readback`() {
+        assertEquals("""{"v":1,"id":7,"op":"language_set","language":"en"}""",
+            SetupProtocol.encode(7, SetupCommand.LanguageSet("en")).toString(Charsets.UTF_8))
+        val reply = SetupProtocol.decode("""{"v":1,"id":7,"state":"done","language":"en"}""".toByteArray())
+        SetupProtocol.validateReply(SetupCommand.LanguageGet, reply)
+        assertEquals("en", reply.language)
+        assertTrue(runCatching { SetupProtocol.encode(7, SetupCommand.LanguageSet("fr")) }.isFailure)
+        assertTrue(runCatching { SetupProtocol.decode("""{"v":1,"id":7,"state":"done","language":"fr"}""".toByteArray()) }.isFailure)
+        assertTrue(runCatching { SetupProtocol.decode("""{"v":1,"id":7,"state":"done","language":"en","volume":30}""".toByteArray()) }.isFailure)
+    }
+
 
     @Test
     fun `scan command is a valid versioned request`() {

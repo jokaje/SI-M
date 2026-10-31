@@ -49,6 +49,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.example.ui.tr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -134,10 +135,10 @@ fun PairingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Orb verbinden", fontWeight = FontWeight.Bold) },
+                title = { Text(tr("Orb verbinden"), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack, modifier = Modifier.testTag("pairing_back_button")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Zurück"))
                     }
                 },
                 actions = {
@@ -145,7 +146,7 @@ fun PairingScreen(
                         onClick = { if (permissionsGranted) onStartScan() },
                         modifier = Modifier.testTag("pairing_refresh_button")
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Erneut suchen")
+                        Icon(Icons.Default.Refresh, contentDescription = tr("Erneut suchen"))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -184,7 +185,7 @@ fun PairingScreen(
                     ) {
                         Icon(
                             Icons.Default.Info,
-                            contentDescription = "Anleitung",
+                            contentDescription = tr("Anleitung"),
                             tint = p.success,
                             modifier = Modifier.size(20.dp)
                         )
@@ -194,16 +195,16 @@ fun PairingScreen(
 
                     Column {
                         Text(
-                            text = "Kopplungsfenster am Orb öffnen",
+                            text = tr("Kopplungsfenster am Orb öffnen"),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = p.success
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "1. Am Orb Einstellungen → Orb koppeln → Setup starten.\n" +
-                                "2. Das Fenster bleibt 180 Sekunden offen.\n" +
-                                "3. Halte das Smartphone in die Nähe und gib den Code vom Orb-Display im Android-Dialog ein.",
+                            text = tr("1. Am Orb Einstellungen → Orb koppeln → Setup starten.\n") +
+                                tr("2. Das Fenster bleibt 180 Sekunden offen.\n") +
+                                tr("3. Halte das Smartphone in die Nähe und gib den Code vom Orb-Display im Android-Dialog ein."),
                             fontSize = 12.sp,
                             color = p.success,
                             lineHeight = 18.sp
@@ -248,7 +249,7 @@ fun PairingScreen(
                     } else {
                         Icon(
                             imageVector = Icons.Default.Bluetooth,
-                            contentDescription = "Bluetooth-Suche",
+                            contentDescription = tr("Bluetooth-Suche"),
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
@@ -258,10 +259,10 @@ fun PairingScreen(
 
             Text(
                 text = when {
-                    state.connecting -> "Kopplung wird aufgebaut …"
-                    state.connected -> "Verbunden"
-                    state.scanning -> "Suche nach SI-M Orbs …"
-                    else -> "Bereit für die Suche"
+                    state.connecting -> tr("Kopplung wird aufgebaut …")
+                    state.connected -> tr("Verbunden")
+                    state.scanning -> tr("Suche nach SI-M Orbs …")
+                    else -> tr("Bereit für die Suche")
                 },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -272,7 +273,7 @@ fun PairingScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = state.status,
+                text = tr(state.status),
                 fontSize = 12.sp,
                 color = if (state.status.contains("fehlt", true) || state.status.contains("nicht", true)) {
                     p.warning
@@ -299,7 +300,7 @@ fun PairingScreen(
                             .setPrimaryClip(ClipData.newPlainText("SI-M SCANDIAG", state.scanDiagnostic))
                     },
                     modifier = Modifier.fillMaxWidth().testTag("copy_scan_diagnostic")
-                ) { Text("Scan-Diagnose kopieren (ohne Gerätekennung)") }
+                ) { Text(tr("Scan-Diagnose kopieren (ohne Gerätekennung)")) }
             }
 
             if (!permissionsGranted) {
@@ -310,7 +311,7 @@ fun PairingScreen(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Bluetooth-Berechtigung erteilen")
+                    Text(tr("Bluetooth-Berechtigung erteilen"))
                 }
             }
 
@@ -323,7 +324,7 @@ fun PairingScreen(
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
-                            "Hast du den sechsstelligen Code vom Orb selbst im Android-Dialog eingegeben?",
+                            tr("Hast du den sechsstelligen Code vom Orb selbst im Android-Dialog eingegeben?"),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = p.infoInk,
@@ -338,7 +339,7 @@ fun PairingScreen(
                         ) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Codeeingabe bestätigen", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(tr("Codeeingabe bestätigen"), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
@@ -404,7 +405,7 @@ fun PairingScreen(
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.testTag("connect_button_${device.address}")
                             ) {
-                                Text("Koppeln", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                Text(tr("Koppeln"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                             }
                         }
                     }
@@ -418,7 +419,7 @@ fun PairingScreen(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
                 ) {
-                    Text("Verbindung beenden")
+                    Text(tr("Verbindung beenden"))
                 }
             }
         }

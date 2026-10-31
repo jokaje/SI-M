@@ -122,7 +122,7 @@ object QuickConnect {
     fun afterVerify(state: QuickState, wifiKnown: Boolean, connected: Boolean, current: String): QuickState {
         if (state.stage != QuickStage.VERIFYING) return state
         val currentName = current.trim()
-        val matches = state.target == null || currentName.isEmpty() || currentName == state.target
+        val matches = state.target != null && currentName == state.target
         return if (wifiKnown && connected && matches) state.copy(stage = QuickStage.CONNECTED) else state
     }
 

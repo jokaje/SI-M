@@ -2,11 +2,19 @@ package com.example.orb
 
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import android.Manifest
+import android.annotation.SuppressLint
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
 /** Single bonded owner plus independent app proof; old address-only cache is never migrated. */
 class TrustedOrbPeer(context: Context) : OrbTrustStore {
+    private val appContext = context.applicationContext
+    private fun canInspectBond(): Boolean = Build.VERSION.SDK_INT < 31 ||
+        ContextCompat.checkSelfPermission(appContext, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
     private val preferences = runCatching {
         val app = context.applicationContext
         EncryptedSharedPreferences.create(app, "trusted_orb_proof_v2",
@@ -24,10 +32,13 @@ class TrustedOrbPeer(context: Context) : OrbTrustStore {
         val encoded = preferences?.getString("proof_key", null) ?: return null
         OrbProof.unhex(encoded).takeIf { it.size == 32 }
     }.getOrNull()
-    override fun matches(peer: BluetoothDevice): Boolean = address != null &&
-        address == peer.address && peer.bondState == BluetoothDevice.BOND_BONDED
+    @SuppressLint("MissingPermission") // canInspectBond checks the runtime grant; SecurityException is caught.
+    override fun matches(peer: BluetoothDevice): Boolean = runCatching {
+        canInspectBond() && address != null && address == peer.address && peer.bondState == BluetoothDevice.BOND_BONDED
+    }.getOrDefault(false)
+    @SuppressLint("MissingPermission") // Same runtime grant and fail-closed SecurityException handling.
     override fun enroll(peer: BluetoothDevice, proofKey: ByteArray): Boolean {
-        if (proofKey.size != 32 || peer.bondState != BluetoothDevice.BOND_BONDED) return false
+        if (proofKey.size != 32 || !canInspectBond() || !runCatching { peer.bondState == BluetoothDevice.BOND_BONDED }.getOrDefault(false)) return false
         val existing = address
         if (existing != null && existing != peer.address) return false
         return runCatching { preferences?.edit()?.putString("bonded_identity", peer.address)

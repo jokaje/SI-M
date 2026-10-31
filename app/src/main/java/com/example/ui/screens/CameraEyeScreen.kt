@@ -44,6 +44,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import com.example.ui.tr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -175,7 +176,7 @@ fun CameraEyeScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Kamera-Zugriff für 'SI-M Auge' erforderlich",
+                        text = tr("Kamera-Zugriff für 'SI-M Auge' erforderlich"),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
@@ -183,7 +184,7 @@ fun CameraEyeScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "SI-M Auge zeigt nur eine lokale Vorschau auf diesem Gerät. Es werden keine Bilder an den Orb gesendet.",
+                        text = tr("SI-M Auge zeigt nur eine lokale Vorschau auf diesem Gerät. Es werden keine Bilder an den Orb gesendet."),
                         color = p.muted,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center
@@ -194,7 +195,7 @@ fun CameraEyeScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Kamera-Erlaubnis erteilen")
+                        Text(tr("Kamera-Erlaubnis erteilen"))
                     }
                 }
             }
@@ -261,7 +262,7 @@ fun CameraEyeScreen(
                     .background(Color(0x99000000))
                     .testTag("camera_eye_close_button")
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Schließen", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Schließen"), tint = Color.White)
             }
 
             // Stream Status Badge
@@ -304,7 +305,7 @@ fun CameraEyeScreen(
                         .clip(CircleShape)
                         .background(Color(0x99000000))
                 ) {
-                    Icon(Icons.Default.Cameraswitch, contentDescription = "Kamera wechseln", tint = Color.White)
+                    Icon(Icons.Default.Cameraswitch, contentDescription = tr("Kamera wechseln"), tint = Color.White)
                 }
             }
         }
@@ -333,7 +334,7 @@ fun CameraEyeScreen(
                             fontSize = 14.sp
                         )
                         Text(
-                            text = "Vorschau-Modus · keine Objekterkennung",
+                            text = tr("Vorschau-Modus · keine Objekterkennung"),
                             fontSize = 11.sp,
                             color = p.accent
                         )
@@ -361,8 +362,8 @@ fun CameraEyeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Keine Verbindung zum Orb", fontSize = 11.sp, color = p.muted)
-                    Text(text = "Bild bleibt auf diesem Gerät", fontSize = 11.sp, color = p.muted)
+                    Text(text = tr("Keine Verbindung zum Orb"), fontSize = 11.sp, color = p.muted)
+                    Text(text = tr("Bild bleibt auf diesem Gerät"), fontSize = 11.sp, color = p.muted)
                 }
             }
         }

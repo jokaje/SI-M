@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.example.ui.tr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,6 +68,7 @@ import com.example.ui.theme.simPalette
 @Composable
 fun OnboardingScreen(
     state: SetupState,
+    uiLanguage: String, onUiLanguage: (String) -> Unit, onRetryLanguage: () -> Unit,
     avatar: CreatureDna,
     draft: String?, avatarName: String, favorites: List<AvatarFavorite>,
     step: Int,
@@ -99,14 +101,22 @@ fun OnboardingScreen(
             .background(p.surface)
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
+            Text(if (uiLanguage == "de") "Sprache / Language" else "Language / Sprache", color = p.ink)
+            Row {
+                Button(onClick = { onUiLanguage("de") }) { Text("Deutsch") }
+                Button(onClick = { onUiLanguage("en") }) { Text("English") }
+            }
+            if (state.languageUnsupported) Text(tr("Orb-Firmware unterstützt keine Sprachwahl"), color = p.warning)
+            if (state.languageError != null) { Text(tr(state.languageError), color = p.warning); Button(onClick = onRetryLanguage) { Text(tr("Erneut versuchen")) } }
+            else if (state.deviceLanguage != uiLanguage) Text(tr("Orb-Synchronisierung ausstehend"), color = p.warning)
             Text(
-                text = "Einrichtung",
+                text = tr("Einrichtung"),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = p.ink
             )
             Text(
-                text = "Schritt $step von 4",
+                text = com.example.ui.trTemplate("step", step),
                 fontSize = 12.sp,
                 color = MutedText
             )
@@ -205,11 +215,11 @@ private fun StepWifi(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Wifi, contentDescription = null, tint = CyanPrimary)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("WLAN auf dem Orb", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = p.ink)
+            Text(tr("WLAN auf dem Orb"), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = p.ink)
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Der Orb bekommt sein Netzwerk direkt vom Gerät. Zugangsdaten werden nur über Bluetooth übertragen und nicht in der App gespeichert.",
+            text = tr("Der Orb bekommt sein Netzwerk direkt vom Gerät. Zugangsdaten werden nur über Bluetooth übertragen und nicht in der App gespeichert."),
             fontSize = 12.sp,
             color = MutedText,
             lineHeight = 17.sp
@@ -223,16 +233,16 @@ private fun StepWifi(
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = p.ink)
+                Text(tr("Gerätestatus"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = p.ink)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = WifiPresentation.onboarding(state),
+                    text = com.example.ui.wifiOnboarding(state),
                     fontSize = 12.sp,
                     color = MutedText
                 )
                 if (!state.savedNetworksKnown || state.savedNetworks.isEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(WifiPresentation.saved(state), fontSize = 12.sp, color = MutedText)
+                    Text(com.example.ui.wifiSaved(state), fontSize = 12.sp, color = MutedText)
                 }
                 if (state.savedNetworksKnown && state.savedNetworks.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -244,7 +254,7 @@ private fun StepWifi(
                         ) {
                             Text(name, fontSize = 12.sp, color = p.body)
                             TextButton(onClick = { onForgetWifi(name) }) {
-                                Text("Entfernen", fontSize = 11.sp, color = p.danger)
+                                Text(tr("Entfernen"), fontSize = 11.sp, color = p.danger)
                             }
                         }
                     }
@@ -258,17 +268,17 @@ private fun StepWifi(
             OutlinedButton(onClick = onScanWifi, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Suchen")
+                Text(tr("Suchen"))
             }
             OutlinedButton(onClick = onRefreshNetworks, modifier = Modifier.weight(1f)) {
-                Text("Status lesen")
+                Text(tr("Status lesen"))
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
         if (state.scanning) {
-            Text("Der Orb sucht Netzwerke …", fontSize = 12.sp, color = CyanPrimary)
+            Text(tr("Der Orb sucht Netzwerke …"), fontSize = 12.sp, color = CyanPrimary)
         }
 
         state.aps.forEach { ap ->
@@ -307,7 +317,7 @@ private fun StepWifi(
                 colors = simOutlinedTextFieldColors(),
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("WLAN-Passwort (8–63 Zeichen)") },
+                label = { Text(tr("WLAN-Passwort (8–63 Zeichen)")) },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 modifier = Modifier
@@ -330,12 +340,12 @@ private fun StepWifi(
                     .fillMaxWidth()
                     .testTag("save_wifi_button")
             ) {
-                Text("WLAN auf dem Orb speichern", fontWeight = FontWeight.Bold)
+                Text(tr("WLAN auf dem Orb speichern"), fontWeight = FontWeight.Bold)
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        Text(state.status, fontSize = 12.sp, color = p.body, lineHeight = 17.sp)
+        Text(tr(state.status), fontSize = 12.sp, color = p.body, lineHeight = 17.sp)
 
         Spacer(modifier = Modifier.height(18.dp))
         Button(
@@ -346,7 +356,7 @@ private fun StepWifi(
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text(WifiPresentation.continueLabel(state), fontWeight = FontWeight.Bold)
+            Text(tr(WifiPresentation.continueLabel(state)), fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -387,11 +397,11 @@ private fun StepAgent(
             .verticalScroll(rememberScrollState())
             .padding(20.dp)
     ) {
-        Text("Sprachdienst", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = p.ink)
+        Text(tr("Sprachdienst"), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = p.ink)
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Der Orb spricht einen HTTPS-Dienst über die Route /v1/turn-stream an (16-kHz-PCM-Audio). " +
-                "Es muss eine eigene Bridge sein, keine beliebige Chat-Adresse.",
+            text = tr("Der Orb spricht einen HTTPS-Dienst über die Route /v1/turn-stream an (16-kHz-PCM-Audio). ") +
+                tr("Es muss eine eigene Bridge sein, keine beliebige Chat-Adresse."),
             fontSize = 12.sp,
             color = MutedText,
             lineHeight = 17.sp
@@ -405,16 +415,16 @@ private fun StepAgent(
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("Gerätestatus", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = p.ink)
+                Text(tr("Gerätestatus"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = p.ink)
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = when {
-                        state.agentUnsupported -> "Diese Firmware unterstützt keine Sprachdienst-Konfiguration."
-                        profile == null -> "Noch nicht gelesen."
-                        profile.source == "custom" -> "Eigene Bridge auf dem Orb gespeichert."
-                        profile.source == "builtin" -> "Alter Firmware-Standard aktiv. Ein Firmware-Update ist nötig, bevor die Anbindung entfernt werden kann."
-                        profile.source == "invalid" -> "Gespeicherte Konfiguration ist ungültig."
-                        else -> "Kein Sprachdienst eingerichtet."
+                        state.agentUnsupported -> tr("Diese Firmware unterstützt keine Sprachdienst-Konfiguration.")
+                        profile == null -> tr("Noch nicht gelesen.")
+                        profile.source == "custom" -> tr("Eigene Bridge auf dem Orb gespeichert.")
+                        profile.source == "builtin" -> tr("Alter Firmware-Standard aktiv. Ein Firmware-Update ist nötig, bevor die Anbindung entfernt werden kann.")
+                        profile.source == "invalid" -> tr("Gespeicherte Konfiguration ist ungültig.")
+                        else -> tr("Kein Sprachdienst eingerichtet.")
                     },
                     fontSize = 12.sp,
                     color = MutedText
@@ -424,7 +434,7 @@ private fun StepAgent(
                     Text(profile.url, fontSize = 11.sp, color = p.body)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(state.agentStatus, fontSize = 12.sp, color = p.body, lineHeight = 17.sp)
+                Text(tr(state.agentStatus), fontSize = 12.sp, color = p.body, lineHeight = 17.sp)
             }
         }
 
@@ -432,7 +442,7 @@ private fun StepAgent(
         OutlinedButton(onClick = onReadAgent, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Status vom Orb lesen")
+            Text(tr("Status vom Orb lesen"))
         }
 
         if (!state.agentUnsupported) {
@@ -441,12 +451,12 @@ private fun StepAgent(
                 colors = simOutlinedTextFieldColors(),
                 value = url,
                 onValueChange = { url = it },
-                label = { Text("HTTPS-Bridge-Endpoint") },
-                placeholder = { Text("https://beispiel.de/v1/turn-stream") },
+                label = { Text(tr("HTTPS-Bridge-Endpoint")) },
+                placeholder = { Text(com.example.ui.trTemplate("endpointExample")) },
                 singleLine = true,
                 isError = url.isNotBlank() && !urlValid,
                 supportingText = {
-                    if (url.isNotBlank() && !urlValid) Text("Muss eine HTTPS-Adresse sein und auf /v1/turn-stream enden.")
+                    if (url.isNotBlank() && !urlValid) Text(tr("Muss eine HTTPS-Adresse sein und auf /v1/turn-stream enden."))
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -458,12 +468,12 @@ private fun StepAgent(
                 colors = simOutlinedTextFieldColors(),
                 value = token,
                 onValueChange = { token = it },
-                label = { Text("Bearer-Zugangsdaten") },
+                label = { Text(tr("Bearer-Zugangsdaten")) },
                 visualTransformation = PasswordVisualTransformation(),
                 singleLine = true,
                 isError = token.isNotBlank() && !tokenValid,
                 supportingText = {
-                    if (token.isNotBlank() && !tokenValid) Text("32–128 Zeichen, Buchstaben, Ziffern und . _ ~ + / - =")
+                    if (token.isNotBlank() && !tokenValid) Text(tr("32–128 Zeichen, Buchstaben, Ziffern und . _ ~ + / - ="))
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -484,11 +494,11 @@ private fun StepAgent(
                     .fillMaxWidth()
                     .testTag("save_agent_button")
             ) {
-                Text("Auf dem Orb speichern", fontWeight = FontWeight.Bold)
+                Text(tr("Auf dem Orb speichern"), fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                "Speichern ist noch kein Sprachtest. Der Orb verbindet sich erst beim ersten Gespräch.",
+                tr("Speichern ist noch kein Sprachtest. Der Orb verbindet sich erst beim ersten Gespräch."),
                 fontSize = 11.sp,
                 color = MutedText
             )
@@ -503,7 +513,7 @@ private fun StepAgent(
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text(if (profile?.source == "custom") "Weiter" else "Ohne Sprachdienst fortfahren", fontWeight = FontWeight.Bold)
+            Text(if (profile?.source == "custom") tr("Weiter") else tr("Ohne Sprachdienst fortfahren"), fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -532,10 +542,10 @@ private fun StepDone(
             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = p.success, modifier = Modifier.size(46.dp))
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Einrichtung abgeschlossen", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = p.ink)
+        Text(tr("Einrichtung abgeschlossen"), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = p.ink)
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            "Diese Angaben hat der Orb bestätigt:",
+            tr("Diese Angaben hat der Orb bestätigt:"),
             fontSize = 12.sp,
             color = MutedText
         )
@@ -547,22 +557,22 @@ private fun StepDone(
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryRow("Lokales Profil (Stimme/Person unverändert)", avatar.name)
+                SummaryRow(tr("Lokales Profil (Stimme/Person unverändert)"), avatar.name)
                 SummaryRow(
-                    "Figur auf dem Orb",
-                    state.companionCharacterId ?: state.selectedCharacter ?: "noch nicht abgerufen"
+                    tr("Figur auf dem Orb"),
+                    state.companionCharacterId ?: state.selectedCharacter ?: tr("noch nicht abgerufen")
                 )
                 SummaryRow(
-                    "WLAN",
-                    WifiPresentation.summary(state)
+                    tr("WLAN"),
+                    com.example.ui.wifiSummary(state)
                 )
                 SummaryRow(
-                    "Sprachdienst",
+                    tr("Sprachdienst"),
                     when (state.agentProfile?.source) {
-                        "custom" -> "eigene Bridge"
-                        "builtin" -> "Firmware-Standard"
-                        "invalid" -> "ungültig"
-                        else -> "nicht eingerichtet"
+                        "custom" -> tr("eigene Bridge")
+                        "builtin" -> tr("Firmware-Standard")
+                        "invalid" -> tr("ungültig")
+                        else -> tr("nicht eingerichtet")
                     }
                 )
             }
@@ -577,7 +587,7 @@ private fun StepDone(
                 .fillMaxWidth()
                 .height(50.dp)
         ) {
-            Text("Zum Dashboard", fontWeight = FontWeight.Bold)
+            Text(tr("Zum Dashboard"), fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -586,7 +596,7 @@ private fun StepDone(
 private fun SummaryRow(label: String, value: String) {
     val p = simPalette()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, fontSize = 12.sp, color = MutedText)
+        Text(tr(label), fontSize = 12.sp, color = MutedText)
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = p.ink)
     }
 }

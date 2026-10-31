@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.ui.tr
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -140,7 +141,7 @@ fun SplashScreen(
             )
 
             Text(
-                text = "Companion für deinen SI-M Orb",
+                text = tr("Companion für deinen SI-M Orb"),
                 fontSize = 14.sp,
                 color = p.muted,
                 modifier = Modifier.padding(top = 6.dp)

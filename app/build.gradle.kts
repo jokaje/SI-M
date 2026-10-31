@@ -22,8 +22,8 @@ android {
         applicationId = "com.aistudio.sim.aiorb"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.2.4"
+        versionCode = 11
+        versionName = "1.2.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

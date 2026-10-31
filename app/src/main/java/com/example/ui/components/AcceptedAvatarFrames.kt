@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import com.example.ui.tr
 import android.content.Context
 
 /** Assets are immutable RGB565LE frames captured from accepted C, never re-drawn in Kotlin. */
@@ -14,7 +15,7 @@ object AcceptedAvatarFrames {
         require(id in ids && mode in 0..2 && frame in 0..3)
         val bytes = synchronized(cache) { cache.getOrPut(id) {
             context.assets.open("avatars/$id.rgb565").use { it.readBytes() }.also { raw ->
-                check(raw.size == 12 * 4096 * 2) { "Unvollständiger Figuren-Frame." }
+                check(raw.size == 12 * 4096 * 2) { tr("Unvollständiger Figuren-Frame.") }
             }
         } }
         val offset = (mode * 4 + frame) * 8192

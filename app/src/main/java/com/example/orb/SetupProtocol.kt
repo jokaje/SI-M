@@ -9,6 +9,8 @@ sealed interface SetupCommand {
     data object Scan : SetupCommand
     data object Networks : SetupCommand
     data object Settings : SetupCommand
+    data object LanguageGet : SetupCommand
+    data class LanguageSet(val language: String) : SetupCommand
     data object Catalog : SetupCommand
     data object CharacterGet : SetupCommand
     data class CharacterSet(val characterId: String) : SetupCommand
@@ -34,7 +36,7 @@ data class SetupReply(
     val currentNetwork: String? = null, val wifiConnected: Boolean? = null, val settings: DeviceSettings? = null,
     val characters: List<CharacterOption>? = null, val selected: String? = null,
     val avatarCaps: Boolean? = null, val avatarPresent: Boolean? = null, val avatarDna: String? = null,
-    val characterId: String? = null
+    val characterId: String? = null, val language: String? = null
 )
 
 object SetupProtocol {
@@ -64,6 +66,8 @@ object SetupProtocol {
                 SetupCommand.Scan -> put("op", "scan")
                 SetupCommand.Networks -> put("op", "networks")
                 SetupCommand.Settings -> put("op", "settings_get")
+                SetupCommand.LanguageGet -> put("op", "language_get")
+                is SetupCommand.LanguageSet -> { require(command.language in setOf("de", "en")); put("op", "language_set"); put("language", command.language) }
                 SetupCommand.Catalog -> put("op", "catalog")
                 SetupCommand.CharacterGet -> put("op", "character_get")
                 is SetupCommand.CharacterSet -> { characterId(command.characterId); require(command.characterId != "custom"); put("op", "character_set"); put("character_id", command.characterId) }
@@ -93,7 +97,7 @@ object SetupProtocol {
         val obj = Json.parseToJsonElement(text).jsonObject
         uniqueKeys(text)
         require(setOf("v", "id", "state").all { it in obj }) { "Unvollständiger Orb-Status." }
-        val allowed = setOf("v", "id", "state", "code", "aps", "saved", "current", "connected", "volume", "brightness", "sleep_s", "characters", "selected", "avatar_caps", "avatar", "character_id", "ok")
+        val allowed = setOf("v", "id", "state", "code", "aps", "saved", "current", "connected", "volume", "brightness", "sleep_s", "characters", "selected", "avatar_caps", "avatar", "character_id", "language", "ok")
         require(obj.keys.all { it in allowed }) { "Unbekannter Orb-Status." }
         fun int(key: String): Int = obj.getValue(key).jsonPrimitive.let {
             require(!it.isString && Regex("-?[0-9]+").matches(it.content)) { "Ungültiger Orb-Zahlenwert." }
@@ -162,10 +166,10 @@ object SetupProtocol {
             require(payload in setOf(
                 emptySet(), setOf("aps"), setOf("saved", "current", "connected"),
                 setOf("volume", "brightness", "sleep_s"), setOf("characters", "selected"), setOf("selected"),
-                setOf("avatar_caps"), setOf("avatar"), setOf("character_id")
+                setOf("avatar_caps"), setOf("avatar"), setOf("character_id"), setOf("language")
             )) { "Unpassende Orb-Antwortfelder." }
         }
-        return SetupReply(id, state, code, aps, saved, obj["current"]?.let(::string), obj["connected"]?.let(::bool), settings, characters, selected, caps, present, dna, customId)
+        return SetupReply(id, state, code, aps, saved, obj["current"]?.let(::string), obj["connected"]?.let(::bool), settings, characters, selected, caps, present, dna, customId, obj["language"]?.let(::string)?.also { require(it in setOf("de", "en")) })
     }
 
     fun validateReply(command: SetupCommand, reply: SetupReply) {
@@ -174,6 +178,8 @@ object SetupProtocol {
             SetupCommand.Scan -> reply.accessPoints != null
             SetupCommand.Networks -> reply.savedNetworks != null && reply.currentNetwork != null && reply.wifiConnected != null
             SetupCommand.Settings -> reply.settings != null
+            SetupCommand.LanguageGet -> reply.language != null
+            is SetupCommand.LanguageSet -> reply.language == null
             SetupCommand.Catalog -> reply.characters != null && reply.selected != null
             SetupCommand.CharacterGet -> reply.characters == null && reply.selected != null
             is SetupCommand.CharacterSet -> reply.characters == null && reply.selected == command.characterId

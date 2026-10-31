@@ -24,6 +24,10 @@ class AppPrefs(context: Context) {
 
     private val prefs = context.applicationContext.getSharedPreferences("si_m_prefs", Context.MODE_PRIVATE)
 
+    var uiLanguage: String
+        get() = prefs.getString("ui_language", "de").takeIf { it in setOf("de", "en") } ?: "de"
+        set(value) { require(value in setOf("de", "en")); prefs.edit().putString("ui_language", value).apply() }
+
     var themeMode: ThemeMode
         get() = runCatching { ThemeMode.valueOf(prefs.getString("theme_mode", null) ?: ThemeMode.SYSTEM.name) }
             .getOrDefault(ThemeMode.SYSTEM)

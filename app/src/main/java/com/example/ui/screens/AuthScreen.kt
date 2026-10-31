@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import com.example.ui.tr
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -157,7 +158,7 @@ fun AuthScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = if (register) "Lokales Profil anlegen" else "Profil entsperren",
+                        text = if (register) tr("Lokales Profil anlegen") else tr("Profil entsperren"),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = p.ink
@@ -169,7 +170,7 @@ fun AuthScreen(
                 colors = simOutlinedTextFieldColors(),
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Dein Name") },
+                            label = { Text(tr("Dein Name")) },
                             leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Name") },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -184,8 +185,8 @@ fun AuthScreen(
                 colors = simOutlinedTextFieldColors(),
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("E-Mail-Adresse") },
-                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = "E-Mail") },
+                        label = { Text(tr("E-Mail-Adresse")) },
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = tr("E-Mail")) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -200,13 +201,13 @@ fun AuthScreen(
                 colors = simOutlinedTextFieldColors(),
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text(if (register) "Passwort (min. 6 Zeichen)" else "Passwort") },
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Passwort") },
+                        label = { Text(if (register) tr("Passwort (min. 6 Zeichen)") else tr("Passwort")) },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = tr("Passwort")) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Passwort anzeigen"
+                                    contentDescription = tr("Passwort anzeigen")
                                 )
                             }
                         },
@@ -243,9 +244,9 @@ fun AuthScreen(
                     ) {
                         Text(
                             text = when {
-                                busy -> "Bitte warten …"
-                                register -> "Profil anlegen"
-                                else -> "Entsperren"
+                                busy -> tr("Bitte warten …")
+                                register -> tr("Profil anlegen")
+                                else -> tr("Entsperren")
                             },
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
@@ -257,7 +258,7 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Das Profil bleibt auf diesem Gerät. Das Passwort wird nur als Prüfsumme im Android-Keystore gespeichert.",
+                text = tr("Das Profil bleibt auf diesem Gerät. Das Passwort wird nur als Prüfsumme im Android-Keystore gespeichert."),
                 fontSize = 11.sp,
                 color = p.muted,
                 textAlign = TextAlign.Center,
